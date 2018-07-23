@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+from io import open
 from setuptools import setup, find_packages
 
 try:
-    readme_text = file('README.rst', 'rb').read()
-except IOError,e:
+    readme_text = open('README.rst').read()
+except IOError as e:
     readme_text = ''
 
 setup(name = "gsconfig",
@@ -19,7 +19,8 @@ setup(name = "gsconfig",
     author_email = "dwinslow@opengeo.org",
     install_requires = [
         'httplib2>=0.7.4',
-        'gisdata==0.5.4'
+        'gisdata==0.5.4',
+        'future>=0.16.0,<0.17.0'
     ],
     package_dir = {'':'src'},
     packages = find_packages('src'),
