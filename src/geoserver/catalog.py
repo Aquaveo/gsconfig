@@ -196,8 +196,6 @@ class Catalog(object):
             raise FailedRequestError("Tried to make a DELETE request to %s but got a %d status code: \n%s" % (rest_url, response.status, content))
 
     def get_xml(self, rest_url):
-        if 'featuretypes' in rest_url and 'featuretypes.' not in rest_url:
-            import pdb; pdb.set_trace()
         logger.debug("GET %s", rest_url)
 
         cached_response = self._cache.get(rest_url)
