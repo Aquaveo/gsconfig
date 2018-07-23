@@ -8,6 +8,9 @@ __author__ = "David Winslow"
 __copyright__ = "Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
 __license__ = "MIT"
 
+from builtins import str
+from past.builtins import basestring
+
 import geoserver.workspace as ws
 from geoserver.resource import featuretype_from_index, coverage_from_index, \
         wmslayer_from_index

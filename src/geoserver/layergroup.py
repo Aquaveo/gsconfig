@@ -8,6 +8,8 @@ __author__ = "Ivan Willig"
 __copyright__ = "Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
 __license__ = "MIT"
 
+from past.builtins import basestring
+
 from geoserver.support import ResourceInfo, bbox, write_bbox, \
         write_string, xml_property, url
 

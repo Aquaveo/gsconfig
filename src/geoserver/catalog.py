@@ -8,6 +8,13 @@ __author__ = "David Winslow"
 __copyright__ = "Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
 __license__ = "MIT"
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import map
+from builtins import str
+from builtins import object
+from past.builtins import basestring
+
 from datetime import datetime, timedelta
 import logging
 import json
@@ -25,7 +32,7 @@ import httplib2
 from xml.etree.ElementTree import XML
 from xml.parsers.expat import ExpatError
 
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 logger = logging.getLogger("gsconfig.catalog")
 
@@ -189,6 +196,8 @@ class Catalog(object):
             raise FailedRequestError("Tried to make a DELETE request to %s but got a %d status code: \n%s" % (rest_url, response.status, content))
 
     def get_xml(self, rest_url):
+        if 'featuretypes' in rest_url and 'featuretypes.' not in rest_url:
+            import pdb; pdb.set_trace()
         logger.debug("GET %s", rest_url)
 
         cached_response = self._cache.get(rest_url)
@@ -199,7 +208,7 @@ class Catalog(object):
         def parse_or_raise(xml):
             try:
                 return XML(xml)
-            except (ExpatError, SyntaxError), e:
+            except (ExpatError, SyntaxError) as e:
                 msg = "GeoServer gave non-XML response for [GET %s]: %s"
                 msg = msg % (rest_url, xml)
                 raise Exception(msg, e)
@@ -303,7 +312,7 @@ class Catalog(object):
         if names is None:
             names = []
         elif isinstance(names, basestring):
-            names = map(str.strip, str(names).split(','))
+            names = list(map(str.strip, str(names).split(',')))
         if stores and names:
             named_stores = []
             for store in stores:
@@ -1006,7 +1015,7 @@ class Catalog(object):
         if names is None:
             names = []
         elif isinstance(names, basestring):
-            names = map(str.strip, str(names).split(','))
+            names = list(map(str.strip, str(names).split(',')))
 
         description = self.get_xml("%s/workspaces.xml" % self.service_url)
         workspaces = []

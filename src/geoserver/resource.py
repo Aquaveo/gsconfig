@@ -8,6 +8,10 @@ __author__ = "David Winslow"
 __copyright__ = "Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
 __license__ = "MIT"
 
+from builtins import str
+from past.builtins import basestring
+from builtins import object
+
 from geoserver.support import ResourceInfo, DimensionInfo, xml_property, write_string, bbox, metadata, \
     write_metadata, write_bbox, string_list, write_string_list, attribute_list, write_bool, url
 

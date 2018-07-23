@@ -8,6 +8,8 @@ __author__ = "David Winslow"
 __copyright__ = "Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
 __license__ = "MIT"
 
+from builtins import object
+
 from geoserver.support import ResourceInfo, xml_property, write_bool, url
 from geoserver.style import Style
 
@@ -144,7 +146,7 @@ class Layer(ResourceInfo):
         if self.dom is None:
             self.fetch()
         styles_list = self.dom.findall("styles/style")
-        return filter(None, [ self._resolve_style(s) for s in styles_list ])
+        return [_f for _f in [ self._resolve_style(s) for s in styles_list ] if _f]
 
     def _set_alternate_styles(self, styles):
         self.dirty["alternate_styles"] = styles
