@@ -58,7 +58,7 @@ def _name(named):
     """
     if isinstance(named, basestring) or named is None:
         return named
-    elif hasattr(named, 'name') and isinstance(named.name, basestring):
+    elif getattr(named, 'name', None) is not None and isinstance(named.name, basestring):
         return named.name
     else:
         raise ValueError("Can't interpret %s as a name or a configuration object" % named)
@@ -219,6 +219,8 @@ class Catalog(object):
             if response.status == 200:
                 self._cache[rest_url] = (datetime.now(), content)
                 return parse_or_raise(content)
+            elif response.status == 404:
+                return None
             else:
                 raise FailedRequestError("Tried to make a GET request to %s but got a %d status code: \n%s" % (rest_url, response.status, content))
 
@@ -292,7 +294,7 @@ class Catalog(object):
                 if ws:
                     # There can only be one workspace with this name
                     workspaces.append(ws[0])
-            elif hasattr(workspace, 'resource_type') and workspace.resource_type == "workspace":
+            elif getattr(workspace, 'resource_type', None) is not None and workspace.resource_type == "workspace":
               workspaces.append(workspace)
         else:
             workspaces = self.get_workspaces()
@@ -501,7 +503,7 @@ class Catalog(object):
             if resp_headers.status != 201:
                 raise UploadError(response)
         finally:
-            if hasattr(upload_data, "close"):
+            if getattr(upload_data, "close", None) is not None:
                 upload_data.close()
 
         return "Image Mosaic created"
@@ -560,7 +562,7 @@ class Catalog(object):
             if headers.status != 201:
                 raise UploadError(response)
         finally:
-            if hasattr(message, "close"):
+            if getattr(message, "close", None) is not None:
                 message.close()
             if archive is not None:
                 os.unlink(archive)
@@ -610,7 +612,7 @@ class Catalog(object):
             if headers.status != 202:
                 raise UploadError(response)
         finally:
-            if hasattr(upload_data, "close"):
+            if getattr(upload_data, "close", None) is not None:
                   upload_data.close()
 
         self._cache.clear()
@@ -1051,7 +1053,7 @@ class Catalog(object):
         return workspace_from_index(self, ws.dom)
 
     def set_default_workspace(self, name):
-        if hasattr(name, 'name'):
+        if getattr(name, 'name', None) is not None:
             name = name.name
         workspace = self.get_workspace(name)
         if workspace is not None:

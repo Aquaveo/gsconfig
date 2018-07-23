@@ -194,10 +194,10 @@ class ResourceInfo(object):
     def serialize(self, builder):
         # GeoServer will disable the resource if we omit the <enabled> tag,
         # so force it into the dirty dict before writing
-        if hasattr(self, "enabled"):
+        if getattr(self, "enabled", None) is not None:
             self.dirty['enabled'] = self.enabled
 
-        if hasattr(self, "advertised"):
+        if getattr(self, "advertised", None) is not None:
             self.dirty['advertised'] = self.advertised
 
         for k, writer in list(self.writers.items()):
