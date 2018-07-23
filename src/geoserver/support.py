@@ -23,6 +23,7 @@ import urllib.request, urllib.parse, urllib.error
 import urllib.parse
 from zipfile import ZipFile
 import os
+from geoserver.exceptions import FailedRequestError
 
 logger = logging.getLogger("gsconfig.support")
 
@@ -72,7 +73,10 @@ def xml_property(path, converter = lambda x: x.text, default=None):
             return self.dirty[path]
         else:
             if self.dom is None:
-                self.fetch()
+                try:
+                    self.fetch()
+                except FailedRequestError:
+                    return default
             node = self.dom.find(path)
             return converter(self.dom.find(path)) if node is not None else default
 

@@ -18,13 +18,15 @@ from past.builtins import basestring
 from datetime import datetime, timedelta
 import logging
 import json
+from geoserver.exceptions import UploadError, ConflictingDataError, \
+    AmbiguousRequestError, FailedRequestError
 from geoserver.layer import Layer
 from geoserver.resource import FeatureType, Coverage
 from geoserver.store import coveragestore_from_index, datastore_from_index, \
     wmsstore_from_index, UnsavedDataStore, \
     UnsavedCoverageStore, UnsavedWmsStore
 from geoserver.style import Style
-from geoserver.support import prepare_upload_bundle, url, _decode_list, _decode_dict, JDBCVirtualTable
+from geoserver.support import prepare_upload_bundle, url, _decode_dict
 from geoserver.layergroup import LayerGroup, UnsavedLayerGroup
 from geoserver.workspace import workspace_from_index, Workspace
 import os
@@ -36,17 +38,6 @@ from urllib.parse import urlparse
 
 logger = logging.getLogger("gsconfig.catalog")
 
-class UploadError(Exception):
-    pass
-
-class ConflictingDataError(Exception):
-    pass
-
-class AmbiguousRequestError(Exception):
-    pass
-
-class FailedRequestError(Exception):
-    pass
 
 def _name(named):
     """Get the name out of an object.  This varies based on the type of the input:
@@ -219,8 +210,6 @@ class Catalog(object):
             if response.status == 200:
                 self._cache[rest_url] = (datetime.now(), content)
                 return parse_or_raise(content)
-            elif response.status == 404:
-                return None
             else:
                 raise FailedRequestError("Tried to make a GET request to %s but got a %d status code: \n%s" % (rest_url, response.status, content))
 
@@ -255,7 +244,7 @@ class Catalog(object):
         self._cache.clear()
         if 400 <= int(headers['status']) < 600:
             raise FailedRequestError("Error code (%s) from GeoServer: %s" %
-                (headers['status'], body))
+                                     (headers['status'], body))
         return response
 
     def get_store(self, name, workspace=None):
