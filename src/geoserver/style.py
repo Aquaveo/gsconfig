@@ -45,18 +45,20 @@ class Style(ResourceInfo):
 
     @property
     def create_href(self):
-        return self._build_href('.xml', True)
+        return self._build_href('.sld', True)
 
     @property
     def content_type(self):
         return Style.content_types[self.style_format]
 
     def _build_href(self, extension, create=False):
-        path_parts = ["styles"]
+        path_parts = []
         query = {}
         if not create:
+            path_parts.append("styles")
             path_parts.append(self.name + extension)
         else:
+            path_parts.append("styles" + extension)
             query['name'] = self.name
         if self.workspace is not None:
             path_parts = ["workspaces", getattr(self.workspace, 'name', self.workspace)] + path_parts

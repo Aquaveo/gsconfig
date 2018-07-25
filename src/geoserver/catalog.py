@@ -955,29 +955,36 @@ class Catalog(object):
         if not overwrite and style is not None:
             raise ConflictingDataError("There is already a style named %s" % name)
 
-        if not overwrite or style is None:
+        # No existing style with given name, so create new one with POST (overwrite does not apply)
+        if style is None:
+            style = Style(self, name, workspace, style_format)
             headers = {
-                "Content-type": "application/xml",
+                "Content-type": style.content_type,
                 "Accept": "application/xml"
             }
-            xml = "<style><name>{0}</name><filename>{0}.sld</filename></style>".format(name)
-            style = Style(self, name, workspace, style_format)
-            headers, response = self.http.request(style.create_href, "POST", xml, headers)
+
+            create_href = style.create_href
+            headers, response = self.http.request(create_href, "POST", data, headers)
             if headers.status < 200 or headers.status > 299: raise UploadError(response)
 
-        headers = {
-            "Content-type": style.content_type,
-            "Accept": "application/xml"
-        }
+        # Style with given name already exists, so update if overwrite is True
+        elif style is not None and overwrite:
+            headers = {
+                "Content-type": style.content_type,
+                "Accept": "application/xml"
+            }
 
-        body_href = style.body_href
-        if raw:
-            body_href += "?raw=true"
-        headers, response = self.http.request(body_href, "PUT", data, headers)
-        if headers.status < 200 or headers.status > 299: raise UploadError(response)
+            body_href = style.body_href
+            if raw:
+                body_href += "?raw=true"
+            headers, response = self.http.request(body_href, "PUT", data, headers)
+            if headers.status < 200 or headers.status > 299: raise UploadError(response)
 
-        self._cache.pop(style.href, None)
-        self._cache.pop(style.body_href, None)
+            self._cache.pop(style.href, None)
+            self._cache.pop(style.body_href, None)
+        # Style with given name already exists, but overwrite not allowed, so raise exception
+        else:
+            raise ConflictingDataError('Style already exists with name: "{}"'.format(style.fqn))
 
     def create_workspace(self, name, uri):
         xml = ("<namespace>"
