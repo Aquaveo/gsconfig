@@ -626,7 +626,7 @@ class ModifyingTests(unittest.TestCase):
             lambda: self.cat.create_coveragestore("states_raster", bogus_tiff)
         )
 
-        ft_ext = self.cat.create_coveragestore_external_geotiff("Pk50095_ext", 'file:test/data/Pk50095.tif', sf)
+        self.cat.create_coveragestore_external_geotiff("Pk50095_ext", 'file:data/data/test/data/Pk50095.tif', sf)
 
     def testLayerSave(self):
         # test saving round trip
@@ -854,14 +854,14 @@ class ModifyingTests(unittest.TestCase):
           testing external Image mosaic creation
         '''
         name = 'cea_mosaic_external'
-        path = os.path.join(os.getcwd(), 'test/data/mosaic/external')
+        path = 'data/data/test/data/mosaic/external'
         self.cat.create_imagemosaic(name, path, workspace = 'topp')
         self.cat._cache.clear()
         resource = self.cat.get_layer("external").resource
         self.assert_(resource is not None)
         
         # add granule to mosaic
-        granule_path = os.path.join(os.getcwd(), 'test/data/mosaic/granules/cea_20150102.tif')
+        granule_path = 'data/data/test/data/mosaic/granules/cea_20150102.tif'
         self.cat.add_granule(granule_path, name, workspace='topp')
         granules = self.cat.list_granules("external", name, 'topp')
         self.assertEqual(2, len(granules['features']))
