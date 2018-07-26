@@ -31,6 +31,7 @@ from geoserver.layergroup import LayerGroup, UnsavedLayerGroup
 from geoserver.workspace import workspace_from_index, Workspace
 import os
 import httplib2
+import requests
 from xml.etree.ElementTree import XML
 from xml.parsers.expat import ExpatError
 
@@ -379,15 +380,16 @@ class Catalog(object):
 
         headers = { 'Content-Type': 'application/zip', 'Accept': 'application/xml' }
         upload_url = url(self.service_url,
-            ["workspaces", workspace, "datastores", store, "file.shp"], params)
+            ["workspaces", workspace, "datastores", store, "file.shp"])
 
         try:
             with open(bundle, "rb") as f:
-                data = f.read()
-                headers, response = self.http.request(upload_url, "PUT", data, headers)
+                files = {'file': f}
+                response = requests.put(upload_url, files=files, headers=headers, params=params,
+                                        auth=(self.username, self.password))
                 self._cache.clear()
-                if headers.status != 201:
-                    raise UploadError(response)
+                if response.status_code != 201:
+                    raise UploadError(response.text)
         finally:
             # os.unlink(bundle)
             pass
