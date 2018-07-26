@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 import os
 import subprocess
 import atexit
@@ -17,8 +19,8 @@ from geoserver.support import JDBCVirtualTable
 from geoserver.support import JDBCVirtualTableGeometry
 from geoserver.layergroup import LayerGroup
 from geoserver.util import shapefile_and_friends
-from utils import DBPARAMS
-from utils import GSPARAMS
+from .utils import DBPARAMS
+from .utils import GSPARAMS
 
 try:
     import psycopg2
@@ -64,7 +66,7 @@ if GSPARAMS['GS_VERSION']:
                              "--path", "/geoserver", GSPARAMS['GS_BASE_DIR'] + "/gs/geoserver.war"],
                              stdout=FNULL, stderr=subprocess.STDOUT)
     child_pid = proc.pid
-    print "Sleep (90)..."
+    print("Sleep (90)...")
     time.sleep(90)
 
 def kill_child():
@@ -72,7 +74,7 @@ def kill_child():
         pass
     else:
         subprocess.Popen(["rm", "-Rf", GSPARAMS['GS_BASE_DIR'] + "/gs"]).communicate()
-        print "KILLING PROCESS: " + str(child_pid)
+        print("KILLING PROCESS: " + str(child_pid))
         os.kill(child_pid, signal.SIGTERM)
 
 atexit.register(kill_child)
@@ -85,9 +87,9 @@ def drop_table(table):
                 try:
                     if conn:
                         conn.cursor().execute('DROP TABLE %s' % table)
-                except Exception,e:
-                    print 'ERROR dropping table'
-                    print e
+                except Exception as e:
+                    print('ERROR dropping table')
+                    print(e)
         return inner
     return outer
 
@@ -654,7 +656,7 @@ class ModifyingTests(unittest.TestCase):
         self.assertEqual(lyr.default_style.name, "population")
 
         old_default_style = lyr.default_style
-        lyr.default_style = (s for s in lyr.styles if s.name == "pophatch").next()
+        lyr.default_style = next((s for s in lyr.styles if s.name == "pophatch"))
         lyr.styles = [old_default_style]
         self.cat.save(lyr)
         lyr = self.cat.get_layer("states")

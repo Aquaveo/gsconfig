@@ -1,4 +1,5 @@
-"""utils to centralize global variabl settings configurable by env vars."""
+"""utils to centralize global variable settings configurable by env vars."""
+from __future__ import print_function
 import os
 
 # envs that can be override by os.environ envs
@@ -55,8 +56,8 @@ DBPARAMS = dict(
     user=os.getenv("DBUSER", "postgres"),
     passwd=os.getenv("DBPASS", "password")
 )
-print '*** GSPARAMS ***'
-print GSPARAMS
-print '*** DBPARAMS ***'
-print DBPARAMS
-print '****************'
+print('*** GSPARAMS ***')
+print(GSPARAMS)
+print('*** DBPARAMS ***')
+print(DBPARAMS)
+print('****************')
