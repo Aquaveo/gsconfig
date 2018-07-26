@@ -1,5 +1,7 @@
 from __future__ import print_function
 from __future__ import absolute_import
+from builtins import next
+from builtins import str
 import os
 import subprocess
 import atexit
@@ -560,7 +562,7 @@ class ModifyingTests(unittest.TestCase):
         }
 
         self.assertEqual(len(expected), len(shapefile_plus_sidecars))
-        for k, v in expected.iteritems():
+        for k, v in expected.items():
             self.assertEqual(v, shapefile_plus_sidecars[k])
 
         sf = self.cat.get_workspace("sf")
