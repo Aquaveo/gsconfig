@@ -120,7 +120,7 @@ class CatalogTests(unittest.TestCase):
 
     def testAbout(self):
         about_html = self.cat.about()
-        self.assertTrue('<html xmlns="http://www.w3.org/1999/xhtml"' in about_html)
+        self.assertTrue('<html xmlns="http://www.w3.org/1999/xhtml"' in str(about_html))
 
     def testGSVersion(self):
         version = self.cat.gsversion()

@@ -450,12 +450,12 @@ class Catalog(object):
         if configure is not None:
             params['configure'] = "none"
 
-        if isinstance(data, file) or os.path.splitext(data)[-1] == ".zip":
+        if getattr(data, 'read', None) is not None or os.path.splitext(data)[-1] == ".zip":
             store_type = "file.imagemosaic"
             contet_type = "application/zip"
             if isinstance(data, basestring):
                 upload_data = open(data, 'rb')
-            elif isinstance(data, file):
+            elif getattr(data, 'read', None) is not None:
                 # Adding this check only to pass tests. We should drop support for passing a file object
                 upload_data = data
             else:
