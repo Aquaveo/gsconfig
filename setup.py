@@ -18,7 +18,7 @@ setup(name = "gsconfig",
     author = "David Winslow, Sebastian Benthall",
     author_email = "dwinslow@opengeo.org",
     install_requires = [
-        'httplib2>=0.7.4',
+        'requests>=2.19.1,<2.20.0',
         'gisdata==0.5.4',
         'future>=0.16.0,<0.17.0'
     ],

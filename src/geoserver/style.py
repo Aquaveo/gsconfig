@@ -105,10 +105,9 @@ class Style(ResourceInfo):
 
     @property
     def sld_body(self):
-        content = self.catalog.http.request(self.body_href)[1]
-        return content
+        response = self.catalog.request(url=self.body_href)
+        return response.text
 
     def update_body(self, body):
         headers = { "Content-Type": self.content_type }
-        self.catalog.http.request(
-            self.body_href, "PUT", body, headers)
+        self.catalog.request(url=self.body_href, method="PUT", data=body, header=headers)
