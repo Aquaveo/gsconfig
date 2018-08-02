@@ -235,12 +235,12 @@ class CatalogTests(unittest.TestCase):
         missing = expected - actual
         extras = actual - expected
         message = "Actual layer list did not match expected! (Extras: %s) (Missing: %s)" % (extras, missing)
-        self.assert_(len(expected ^ actual) == 0, message)
+        self.assertTrue(len(expected ^ actual) == 0, message)
 
         states = self.cat.get_layer("states")
 
-        self.assert_("states", states.name)
-        self.assert_(isinstance(states.resource, ResourceInfo))
+        self.assertEqual("states", states.name)
+        self.assertIsInstance(states.resource, ResourceInfo)
         self.assertEqual(set(s.name for s in states.styles), set(['pophatch', 'polygon']))
         self.assertEqual(states.default_style.name, "population")
 
@@ -250,24 +250,24 @@ class CatalogTests(unittest.TestCase):
         missing = expected - actual
         extras = actual - expected
         message = "Actual layergroup list did not match expected! (Extras: %s) (Missing: %s)" % (extras, missing)
-        self.assert_(len(expected ^ actual) == 0, message)
+        self.assertTrue(len(expected ^ actual) == 0, message)
 
         tas = self.cat.get_layergroup("tasmania")
 
-        self.assert_("tasmania", tas.name)
-        self.assert_(isinstance(tas, LayerGroup))
+        self.assertEqual("tasmania", tas.name)
+        self.assertIsInstance(tas, LayerGroup)
         self.assertEqual(tas.layers, ['tasmania_state_boundaries', 'tasmania_water_bodies', 'tasmania_roads', 'tasmania_cities'], tas.layers)
         self.assertEqual(tas.styles, [None, None, None, None], tas.styles)
 
         # Try to create a new Layer Group into the "topp" workspace
-        self.assert_(self.cat.get_workspace("topp") is not None)
+        self.assertIsNotNone(self.cat.get_workspace("topp"))
         tas2 = self.cat.create_layergroup("tasmania_reloaded", tas.layers, workspace = "topp")
         self.cat.save(tas2)
-        self.assert_(self.cat.get_layergroup("tasmania_reloaded") is None)
-        self.assert_(self.cat.get_layergroup("tasmania_reloaded", "topp") is not None)
+        self.assertIsNone(self.cat.get_layergroup("tasmania_reloaded"))
+        self.assertIsNotNone(self.cat.get_layergroup("tasmania_reloaded", "topp"))
         tas2 = self.cat.get_layergroup("tasmania_reloaded", "topp")
-        self.assert_("tasmania_reloaded", tas2.name)
-        self.assert_(isinstance(tas2, LayerGroup))
+        self.assertEqual("tasmania_reloaded", tas2.name)
+        self.assertIsInstance(tas2, LayerGroup)
         self.assertEqual(tas2.workspace, "topp", tas2.workspace)
         self.assertEqual(tas2.layers, ['tasmania_state_boundaries', 'tasmania_water_bodies', 'tasmania_roads', 'tasmania_cities'], tas2.layers)
         self.assertEqual(tas2.styles, [None, None, None, None], tas2.styles)
@@ -276,7 +276,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual("population", self.cat.get_style("population").name)
         self.assertEqual("popshade.sld", self.cat.get_style("population").filename)
         self.assertEqual("population", self.cat.get_style("population").sld_name)
-        self.assert_(self.cat.get_style('non-existing-style') is None)
+        self.assertIsNone(self.cat.get_style('non-existing-style'))
 
     def testEscaping(self):
         # GSConfig is inconsistent about using exceptions vs. returning None
@@ -285,7 +285,7 @@ class CatalogTests(unittest.TestCase):
         # misconstructed URLS
         self.cat.get_style("best style ever")
         self.cat.get_workspace("best workspace ever")
-        self.assertEquals(self.cat.get_store(workspace="best workspace ever", name="best store ever"), None)
+        self.assertEqual(self.cat.get_store(workspace="best workspace ever", name="best store ever"), None)
         self.cat.get_layer("best layer ever")
         self.cat.get_layergroup("best layergroup ever")
 
@@ -368,10 +368,10 @@ class ModifyingTests(unittest.TestCase):
             self.cat.delete(lyr.resource)
             ds = self.cat.get_store("gsconfig_import_test")
             # make sure it's gone
-            self.assert_(self.cat.get_layer('import') is None)
+            self.assertIsNone(self.cat.get_layer('import'))
             self.cat.publish_featuretype("import", ds, native_crs="EPSG:4326")
             # and now it's not
-            self.assert_(self.cat.get_layer('import') is not None)
+            self.assertIsNotNone(self.cat.get_layer('import'))
         finally:
             # tear stuff down to allow the other test to pass if we run first
             ds = self.cat.get_store("gsconfig_import_test")
@@ -488,25 +488,25 @@ class ModifyingTests(unittest.TestCase):
         formats_after = set(["PNG", "GIF", "TIFF"])
 
         # set and save request_srs_list
-        self.assertEquals(set(rs.request_srs_list), srs_before, str(rs.request_srs_list))
+        self.assertEqual(set(rs.request_srs_list), srs_before, str(rs.request_srs_list))
         rs.request_srs_list = rs.request_srs_list + ['EPSG:3785']
         self.cat.save(rs)
         rs = self.cat.get_resource("Arc_Sample")
-        self.assertEquals(set(rs.request_srs_list), srs_after, str(rs.request_srs_list))
+        self.assertEqual(set(rs.request_srs_list), srs_after, str(rs.request_srs_list))
 
         # set and save response_srs_list
-        self.assertEquals(set(rs.response_srs_list), srs_before, str(rs.response_srs_list))
+        self.assertEqual(set(rs.response_srs_list), srs_before, str(rs.response_srs_list))
         rs.response_srs_list = rs.response_srs_list + ['EPSG:3785']
         self.cat.save(rs)
         rs = self.cat.get_resource("Arc_Sample")
-        self.assertEquals(set(rs.response_srs_list), srs_after, str(rs.response_srs_list))
+        self.assertEqual(set(rs.response_srs_list), srs_after, str(rs.response_srs_list))
 
         # set and save supported_formats
-        self.assertEquals(set(rs.supported_formats), formats, str(rs.supported_formats))
+        self.assertEqual(set(rs.supported_formats), formats, str(rs.supported_formats))
         rs.supported_formats = ["PNG", "GIF", "TIFF"]
         self.cat.save(rs)
         rs = self.cat.get_resource("Arc_Sample")
-        self.assertEquals(set(rs.supported_formats), formats_after, str(rs.supported_formats))
+        self.assertEqual(set(rs.supported_formats), formats_after, str(rs.supported_formats))
 
     def testWmsStoreCreate(self):
         ws = self.cat.create_wmsstore("wmsstore_gsconfig")
@@ -568,7 +568,7 @@ class ModifyingTests(unittest.TestCase):
         sf = self.cat.get_workspace("sf")
         self.cat.create_featurestore("states_test", shapefile_plus_sidecars, sf)
 
-        self.assert_(self.cat.get_resource("states_test", workspace=sf) is not None)
+        self.assertIsNotNone(self.cat.get_resource("states_test", workspace=sf))
 
         self.assertRaises(
             ConflictingDataError,
@@ -594,7 +594,7 @@ class ModifyingTests(unittest.TestCase):
 
         lyr = self.cat.get_layer("states_test")
         self.cat.delete(lyr)
-        self.assert_(self.cat.get_layer("states_test") is None)
+        self.assertIsNone(self.cat.get_layer("states_test"))
 
 
     def testCoverageCreate(self):
@@ -607,7 +607,7 @@ class ModifyingTests(unittest.TestCase):
         sf = self.cat.get_workspace("sf")
         ft = self.cat.create_coveragestore("Pk50095", tiffdata, sf)
 
-        self.assert_(self.cat.get_resource("Pk50095", workspace=sf) is not None)
+        self.assertIsNotNone(self.cat.get_resource("Pk50095", workspace=sf))
 
         self.assertRaises(
                 ConflictingDataError,
@@ -671,80 +671,89 @@ class ModifyingTests(unittest.TestCase):
         count = len(self.cat.get_styles())
 
         # upload new style, verify existence
-        self.cat.create_style("fred", open("test/fred.sld").read())
+        with open("test/fred.sld") as fred_sld:
+            self.cat.create_style("fred", fred_sld.read())
         fred = self.cat.get_style("fred")
-        self.assert_(fred is not None)
+        self.assertIsNotNone(fred)
         self.assertEqual("Fred", fred.sld_title)
 
         # replace style, verify changes
-        self.cat.create_style("fred", open("test/ted.sld").read(), overwrite=True)
+        with open("test/ted.sld") as ted_sld:
+            self.cat.create_style("fred", ted_sld.read(), overwrite=True)
         fred = self.cat.get_style("fred")
-        self.assert_(fred is not None)
+        self.assertIsNotNone(fred)
         self.assertEqual("Ted", fred.sld_title)
 
         # delete style, verify non-existence
         self.cat.delete(fred, purge=True)
-        self.assert_(self.cat.get_style("fred") is None)
+        self.assertIsNone(self.cat.get_style("fred"))
 
         # attempt creating new style
-        self.cat.create_style("fred", open("test/fred.sld").read())
+        with open("test/fred.sld") as fred_sld:
+            self.cat.create_style("fred", fred_sld.read())
         fred = self.cat.get_style("fred")
         self.assertEqual("Fred", fred.sld_title)
 
         # verify it can be found via URL and check the name
         f = self.cat.get_style_by_url(fred.href)
-        self.assert_(f is not None)
+        self.assertIsNotNone(f)
         self.assertEqual(f.name, fred.name)
 
         # compare count after upload
         self.assertEqual(count +1, len(self.cat.get_styles()))
 
         # attempt creating a new style without "title"
-        self.cat.create_style("notitle", open("test/notitle.sld").read())
+        with open("test/notitle.sld") as notitle_sld:
+            self.cat.create_style("notitle", notitle_sld.read())
         notitle = self.cat.get_style("notitle")
         self.assertEqual(None, notitle.sld_title)
 
     def testWorkspaceStyles(self):
         # upload new style, verify existence
-        self.cat.create_style("jed", open("test/fred.sld").read(), workspace="topp")
+        with open("test/fred.sld") as fred_sld:
+            self.cat.create_style("jed", fred_sld.read(), workspace="topp")
 
         jed = self.cat.get_style("jed", workspace="blarny")
-        self.assert_(jed is None)
+        self.assertIsNone(jed)
         jed = self.cat.get_style("jed", workspace="topp")
-        self.assert_(jed is not None)
+        self.assertIsNotNone(jed)
         self.assertEqual("Fred", jed.sld_title)
         jed = self.cat.get_style("topp:jed")
-        self.assert_(jed is not None)
+        self.assertIsNotNone(jed)
         self.assertEqual("Fred", jed.sld_title)
 
         # replace style, verify changes
-        self.cat.create_style("jed", open("test/ted.sld").read(), overwrite=True, workspace="topp")
+        with open("test/ted.sld") as ted_sld:
+            self.cat.create_style("jed", ted_sld.read(), overwrite=True, workspace="topp")
         jed = self.cat.get_style("jed", workspace="topp")
-        self.assert_(jed is not None)
+        self.assertIsNotNone(jed)
         self.assertEqual("Ted", jed.sld_title)
 
         # delete style, verify non-existence
         self.cat.delete(jed, purge=True)
-        self.assert_(self.cat.get_style("jed", workspace="topp") is None)
+        self.assertIsNone(self.cat.get_style("jed", workspace="topp"))
 
         # attempt creating new style
-        self.cat.create_style("jed", open("test/fred.sld").read(), workspace="topp")
+        with open("test/fred.sld") as fred_sld:
+            self.cat.create_style("jed", fred_sld.read(), workspace="topp")
         jed = self.cat.get_style("jed", workspace="topp")
         self.assertEqual("Fred", jed.sld_title)
 
         # verify it can be found via URL and check the full name
         f = self.cat.get_style_by_url(jed.href)
-        self.assert_(f is not None)
+        self.assertIsNotNone(f)
         self.assertEqual(f.fqn, jed.fqn)
 
     def testLayerWorkspaceStyles(self):
         # upload new style, verify existence
-        self.cat.create_style("ned", open("test/fred.sld").read(), overwrite=True, workspace="topp")
-        self.cat.create_style("zed", open("test/ted.sld").read(), overwrite=True, workspace="topp")
+        with open("test/fred.sld") as fred_sld:
+            self.cat.create_style("ned", fred_sld.read(), overwrite=True, workspace="topp")
+        with open("test/fred.sld") as ted_sld:
+            self.cat.create_style("zed", ted_sld.read(), overwrite=True, workspace="topp")
         ned = self.cat.get_style("ned", workspace="topp")
         zed = self.cat.get_style("zed", workspace="topp")
-        self.assert_(ned is not None)
-        self.assert_(zed is not None)
+        self.assertIsNotNone(ned)
+        self.assertIsNotNone(zed)
 
         lyr = self.cat.get_layer("states")
         lyr.default_style = ned
@@ -769,7 +778,7 @@ class ModifyingTests(unittest.TestCase):
         ws = self.cat.get_workspace("foo")
         self.cat.delete(ws)
         ws = self.cat.get_workspace("foo")
-        self.assert_(ws is None)
+        self.assertIsNone(ws)
 
     def testWorkspaceDefault(self):
         # save orig
@@ -795,19 +804,19 @@ class ModifyingTests(unittest.TestCase):
 
     def testDataStoreDelete(self):
         states = self.cat.get_store('states_shapefile')
-        self.assert_(states.enabled == True)
+        self.assertTrue(states.enabled)
         states.enabled = False
-        self.assert_(states.enabled == False)
+        self.assertFalse(states.enabled)
         self.cat.save(states)
 
         states = self.cat.get_store('states_shapefile')
-        self.assert_(states.enabled == False)
+        self.assertFalse(states.enabled)
 
         states.enabled = True
         self.cat.save(states)
 
         states = self.cat.get_store('states_shapefile')
-        self.assert_(states.enabled == True)
+        self.assertTrue(states.enabled)
 
     def testLayerGroupSave(self):
         tas = self.cat.get_layergroup("tasmania")
@@ -835,14 +844,14 @@ class ModifyingTests(unittest.TestCase):
         """
         # testing the mosaic creation
         name = 'cea_mosaic'
-        data = open('test/data/mosaic/cea.zip', 'rb')
-        self.cat.create_imagemosaic(name, data)
+        with open('test/data/mosaic/cea.zip', 'rb') as data:
+            self.cat.create_imagemosaic(name, data)
 
         # get the layer resource back
         self.cat._cache.clear()
         resource = self.cat.get_layer(name).resource
 
-        self.assert_(resource is not None)
+        self.assertIsNotNone(resource)
 
         # delete granule from mosaic
         coverage = name
@@ -862,7 +871,7 @@ class ModifyingTests(unittest.TestCase):
         self.cat.create_imagemosaic(name, path, workspace = 'topp')
         self.cat._cache.clear()
         resource = self.cat.get_layer("external").resource
-        self.assert_(resource is not None)
+        self.assertIsNotNone(resource)
         
         # add granule to mosaic
         granule_path = 'data/data/test/data/mosaic/granules/cea_20150102.tif'
