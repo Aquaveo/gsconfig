@@ -1,6 +1,6 @@
 language: python
 addons:
-  postgresql: "9.3"
+  postgresql: "9.6"
 services:
  - postgresql
 matrix:
@@ -25,6 +25,17 @@ matrix:
       env: GS_VERSION=2.7.x
     - python: "2.7"
       env: GS_VERSION=2.8.x
+    - python: "3.6"
+      env: GS_VERSION=2.4.x
+    - python: "3.6"
+      env: GS_VERSION=2.5.x
+    - python: "3.6"
+      env: GS_VERSION=2.6.x
+    - python: "3.6"
+      env: GS_VERSION=2.7.x
+    - python: "3.6"
+      env: GS_VERSION=2.8.x
+
 install:
   - sudo apt-get -qq -y update
   - sudo apt-get install -y --force-yes openjdk-7-jdk --no-install-recommends
@@ -49,6 +60,3 @@ notifications:
   email:
     on_success: never
     on_failure: never
-branches:
-  only:
-    - master
