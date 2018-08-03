@@ -1,0 +1,6 @@
+linters:
+  flake8:
+    max-line-length: 120
+    fixer: true
+    exclude: .git,build,dist,__pycache__,.eggs,*.egg-info
+    ignore: E402
