@@ -1,8 +1,8 @@
-'''
+"""
 gsconfig is a python library for manipulating a GeoServer instance via the GeoServer RESTConfig API.
 
 The project is distributed under a MIT License .
-'''
+"""
 
 __author__ = "David Winslow"
 __copyright__ = "Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
@@ -13,6 +13,7 @@ from builtins import object
 from geoserver.support import ResourceInfo, xml_property, write_bool, url
 from geoserver.style import Style
 
+
 class _attribution(object):
     def __init__(self, title, width, height, href, url, type):
         self.title = title
@@ -22,6 +23,7 @@ class _attribution(object):
         self.url = url
         self.type = type
 
+
 def _read_attribution(node):
     title = node.find("title")
     width = node.find("logoWidth")
@@ -29,7 +31,7 @@ def _read_attribution(node):
     href = node.find("href")
     url = node.find("logoURL")
     type = node.find("logoType")
-    
+
     if title is not None:
         title = title.text
     if width is not None:
@@ -41,9 +43,10 @@ def _read_attribution(node):
     if url is not None:
         url = url.text
     if type is not None:
-        type = type.text    
+        type = type.text
 
     return _attribution(title, width, height, href, url, type)
+
 
 def _write_attribution(builder, attr):
     builder.start("attribution", dict())
@@ -73,6 +76,7 @@ def _write_attribution(builder, attr):
         builder.end("logoType")
     builder.end("attribution")
 
+
 def _write_style_element(builder, name):
     ws, name = name.split(':') if ':' in name else (None, name)
     builder.start("name", dict())
@@ -82,6 +86,7 @@ def _write_style_element(builder, name):
         builder.start("workspace", dict())
         builder.data(ws)
         builder.end("workspace")
+
 
 def _write_default_style(builder, name):
     builder.start("defaultStyle", dict())
@@ -114,7 +119,7 @@ class Layer(ResourceInfo):
 
     @property
     def resource(self):
-        if self.dom is None: 
+        if self.dom is None:
             self.fetch()
         name = self.dom.find("resource/name").text
         return self.catalog.get_resource(name)
@@ -146,7 +151,7 @@ class Layer(ResourceInfo):
         if self.dom is None:
             self.fetch()
         styles_list = self.dom.findall("styles/style")
-        return [_f for _f in [ self._resolve_style(s) for s in styles_list ] if _f]
+        return [_f for _f in [self._resolve_style(s) for s in styles_list] if _f]
 
     def _set_alternate_styles(self, styles):
         self.dirty["alternate_styles"] = styles
@@ -159,21 +164,21 @@ class Layer(ResourceInfo):
     advertised = xml_property("advertised", lambda x: x.text == "true", default=True)
 
     def _get_attr_attribution(self):
-        return { 'title': self.attribution_object.title, 
-                 'width': self.attribution_object.width, 
-                 'height': self.attribution_object.height, 
-                 'href': self.attribution_object.href, 
-                 'url': self.attribution_object.url, 
-                 'type': self.attribution_object.type }
-     
+        return {'title': self.attribution_object.title,
+                'width': self.attribution_object.width,
+                'height': self.attribution_object.height,
+                'href': self.attribution_object.href,
+                'url': self.attribution_object.url,
+                'type': self.attribution_object.type}
+
     def _set_attr_attribution(self, attribution):
-        self.dirty["attribution"] = _attribution( attribution['title'],
-                                                  attribution['width'],
-                                                  attribution['height'],
-                                                  attribution['href'],
-                                                  attribution['url'],
-                                                  attribution['type'] )
-                    
+        self.dirty["attribution"] = _attribution(attribution['title'],
+                                                 attribution['width'],
+                                                 attribution['height'],
+                                                 attribution['href'],
+                                                 attribution['url'],
+                                                 attribution['type'])
+
         assert self.attribution_object.title == attribution['title']
         assert self.attribution_object.width == attribution['width']
         assert self.attribution_object.height == attribution['height']
@@ -184,9 +189,9 @@ class Layer(ResourceInfo):
     attribution = property(_get_attr_attribution, _set_attr_attribution)
 
     writers = dict(
-            attribution = _write_attribution,
-            enabled = write_bool("enabled"),
-            advertised = write_bool("advertised"),
-            default_style = _write_default_style,
-            alternate_styles = _write_alternate_styles
-            )
+        attribution=_write_attribution,
+        enabled=write_bool("enabled"),
+        advertised=write_bool("advertised"),
+        default_style=_write_default_style,
+        alternate_styles=_write_alternate_styles
+    )

@@ -1,8 +1,8 @@
-'''
+"""
 gsconfig is a python library for manipulating a GeoServer instance via the GeoServer RESTConfig API.
 
 The project is distributed under a MIT License .
-'''
+"""
 
 __author__ = "David Winslow"
 __copyright__ = "Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
@@ -17,7 +17,6 @@ from past.builtins import basestring
 
 from datetime import datetime, timedelta
 import logging
-import json
 from geoserver.exceptions import UploadError, ConflictingDataError, \
     AmbiguousRequestError, FailedRequestError
 from geoserver.layer import Layer
@@ -34,7 +33,6 @@ import requests
 from xml.etree.ElementTree import XML
 from xml.parsers.expat import ExpatError
 
-from urllib.parse import urlparse
 
 logger = logging.getLogger("gsconfig.catalog")
 
@@ -53,6 +51,7 @@ def _name(named):
         return named.name
     else:
         raise ValueError("Can't interpret %s as a name or a configuration object" % named)
+
 
 class Catalog(object):
     """
@@ -93,7 +92,7 @@ class Catalog(object):
                                 auth=self._auth, verify=self._verify)
 
     def about(self):
-        '''return the about information as a formatted html'''
+        """return the about information as a formatted html"""
         about_url = self.service_url + "/about/version.html"
         response = self.request(method='get', url=about_url)
         if response.status_code == 200:
@@ -102,11 +101,12 @@ class Catalog(object):
                                  (response.text or response.status_code))
 
     def gsversion(self):
-        '''obtain the version or just 2.2.x if < 2.3.x
+        """obtain the version or just 2.2.x if < 2.3.x
         Raises:
             FailedRequestError: If the request fails.
-        '''
-        if self._version: return self._version
+        """
+        if self._version:
+            return self._version
         about_url = self.service_url + "/about/version.xml"
         response = self.request(method='get', url=about_url)
         version = None
@@ -118,12 +118,12 @@ class Catalog(object):
                     try:
                         version = resource.find("Version").text
                         break
-                    except:
+                    except Exception:
                         pass
 
-        #This will raise an exception if the catalog is not available
-        #If the catalog is available but could not return version information,
-        #it is an old version that does not support that
+        # This will raise an exception if the catalog is not available
+        # If the catalog is available but could not return version information,
+        # it is an old version that does not support that
         if version is None:
             self.get_workspaces()
             # just to inform that version < 2.3.x
@@ -224,11 +224,11 @@ class Catalog(object):
         return response
 
     def get_store(self, name, workspace=None):
-        '''
+        """
           Returns a single store object.
           Will return None if no store is found.
           Will raise an error if more than one store with the same name is found.
-        '''
+        """
 
         stores = self.get_stores(workspace=workspace, names=name)
 
@@ -237,20 +237,22 @@ class Catalog(object):
         elif stores.__len__() > 1:
             multiple_stores = []
             for s in stores:
-                multiple_stores.append("{workspace_name}:{store_name}".format(workspace_name=s.workspace.name, store_name=s.name))
+                multiple_stores.append("{workspace_name}:{store_name}".format(
+                    workspace_name=s.workspace.name, store_name=s.name))
 
-            raise AmbiguousRequestError("Multiple stores found named {name} - {stores}".format(name=name, stores=", ".join(multiple_stores)))
+            raise AmbiguousRequestError("Multiple stores found named {name} - {stores}".format(
+                name=name, stores=", ".join(multiple_stores)))
         else:
             return stores[0]
 
     def get_stores(self, names=None, workspace=None):
-        '''
+        """
           Returns a list of stores in the catalog. If workspace is specified will only return stores in that workspace.
           If names is specified, will only return stores that match.
           names can either be a comma delimited string or an array.
           If names is specified will only return stores that match the name.
           Will return an empty list if no stores are found.
-        '''
+        """
 
         workspaces = []
         if workspace is not None:
@@ -260,7 +262,7 @@ class Catalog(object):
                     # There can only be one workspace with this name
                     workspaces.append(ws[0])
             elif getattr(workspace, 'resource_type', None) is not None and workspace.resource_type == "workspace":
-              workspaces.append(workspace)
+                workspaces.append(workspace)
         else:
             workspaces = self.get_workspaces()
 
@@ -294,7 +296,7 @@ class Catalog(object):
             workspace = self.get_default_workspace()
         return UnsavedDataStore(self, name, workspace)
 
-    def create_coveragestore2(self, name, workspace = None):
+    def create_coveragestore2(self, name, workspace=None):
         """
         Hm we already named the method that creates a coverage *resource*
         create_coveragestore... time for an API break?
@@ -305,7 +307,7 @@ class Catalog(object):
             workspace = self.get_default_workspace()
         return UnsavedCoverageStore(self, name, workspace)
 
-    def create_wmsstore(self, name, workspace = None, user = None, password = None):
+    def create_wmsstore(self, name, workspace=None, user=None, password=None):
         if workspace is None:
             workspace = self.get_default_workspace()
         return UnsavedWmsStore(self, name, workspace, user, password)
@@ -326,15 +328,17 @@ class Catalog(object):
         response = self.request(method='post', url=wms_url, headers=headers, data=data)
 
         self._cache.clear()
-        if response.status_code < 200 or response.status_code > 299: raise UploadError(response.text)
+        if response.status_code < 200 or response.status_code > 299:
+            raise UploadError(response.text)
         return self.get_resource(name, store=store, workspace=workspace)
 
-    def add_data_to_store(self, store, name, data, workspace=None, overwrite = False, charset = None):
+    def add_data_to_store(self, store, name, data, workspace=None, overwrite=False, charset=None):
         if isinstance(store, basestring):
             store = self.get_store(store, workspace=workspace)
         if workspace is not None:
             workspace = _name(workspace)
-            assert store.workspace.name == workspace, "Specified store (%s) is not in specified workspace (%s)!" % (store, workspace)
+            assert store.workspace.name == workspace, \
+                "Specified store (%s) is not in specified workspace (%s)!" % (store, workspace)
         else:
             workspace = store.workspace.name
         store = store.name
@@ -353,9 +357,9 @@ class Catalog(object):
         params["target"] = "shp"
         # params["configure"] = "all"
 
-        headers = { 'Content-Type': 'application/zip', 'Accept': 'application/xml' }
+        headers = {'Content-Type': 'application/zip', 'Accept': 'application/xml'}
         upload_url = url(self.service_url,
-            ["workspaces", workspace, "datastores", store, "file.shp"])
+                         ["workspaces", workspace, "datastores", store, "file.shp"])
 
         try:
             with open(bundle, "rb") as f:
@@ -385,14 +389,14 @@ class Catalog(object):
         if charset is not None:
             params['charset'] = charset
         ds_url = url(self.service_url,
-            ["workspaces", workspace, "datastores", name, "file.shp"])
+                     ["workspaces", workspace, "datastores", name, "file.shp"])
 
         # PUT /workspaces/<ws>/datastores/<ds>/file.shp
         headers = {
             "Content-type": "application/zip",
             "Accept": "application/xml"
         }
-        if isinstance(data,dict):
+        if isinstance(data, dict):
             logger.debug('Data is NOT a zipfile')
             archive = prepare_upload_bundle(name, data)
         else:
@@ -515,10 +519,9 @@ class Catalog(object):
             else:
                 message = data
 
-
         cs_url = url(self.service_url,
-            ["workspaces", workspace.name, "coveragestores", name, store_type + ext],
-            { "configure" : "first", "coverageName" : name})
+                     ["workspaces", workspace.name, "coveragestores", name, store_type + ext],
+                     {"configure": "first", "coverageName": name})
 
         try:
             response = self.request(method='put', url=cs_url, headers=headers, data=message)
@@ -532,14 +535,14 @@ class Catalog(object):
                 os.unlink(archive)
 
     def add_granule(self, data, store, workspace=None):
-        '''Harvest/add a granule into an existing imagemosaic'''
+        """Harvest/add a granule into an existing imagemosaic"""
         ext = os.path.splitext(data)[-1]
         if ext == ".zip":
             type = "file.imagemosaic"
             upload_data = open(data, 'rb')
             headers = {
-              "Content-type": "application/zip",
-              "Accept": "application/xml"
+                "Content-type": "application/zip",
+                "Accept": "application/xml"
             }
         else:
             type = "external.imagemosaic"
@@ -557,7 +560,8 @@ class Catalog(object):
             store_name = store.name
             workspace_name = store.workspace.name
 
-        if workspace_name is None: raise ValueError("Must specify workspace")
+        if workspace_name is None:
+            raise ValueError("Must specify workspace")
 
         cs_url = url(
             self.service_url,
@@ -576,13 +580,13 @@ class Catalog(object):
                 raise UploadError(response.text)
         finally:
             if getattr(upload_data, "close", None) is not None:
-                  upload_data.close()
+                upload_data.close()
 
         self._cache.clear()
         return "Added granule"
 
     def delete_granule(self, coverage, store, granule_id, workspace=None):
-        '''Deletes a granule of an existing imagemosaic'''
+        """Deletes a granule of an existing imagemosaic"""
         workspace_name = workspace
         if isinstance(store, basestring):
             store_name = store
@@ -590,7 +594,8 @@ class Catalog(object):
             store_name = store.name
             workspace_name = store.workspace.name
 
-        if workspace_name is None: raise ValueError("Must specify workspace")
+        if workspace_name is None:
+            raise ValueError("Must specify workspace")
 
         cs_url = url(
             self.service_url,
@@ -620,7 +625,7 @@ class Catalog(object):
         return "Deleted granule"
 
     def list_granules(self, coverage, store, workspace=None, filter=None, limit=None, offset=None):
-        '''List granules of an imagemosaic'''
+        """List granules of an imagemosaic"""
         params = dict()
 
         if filter is not None:
@@ -637,7 +642,8 @@ class Catalog(object):
             store_name = store.name
             workspace_name = store.workspace.name
 
-        if workspace_name is None: raise ValueError("Must specify workspace")
+        if workspace_name is None:
+            raise ValueError("Must specify workspace")
 
         cs_url = url(
             self.service_url,
@@ -666,15 +672,15 @@ class Catalog(object):
         return granules
 
     def harvest_externalgranule(self, data, store):
-        '''Harvest a granule into an existing imagemosaic'''
+        """Harvest a granule into an existing imagemosaic"""
         self.add_granule(data, store)
 
     def harvest_uploadgranule(self, data, store):
-        '''Harvest a granule into an existing imagemosaic'''
+        """Harvest a granule into an existing imagemosaic"""
         self.add_granule(data, store)
 
     def mosaic_coverages(self, store):
-        '''Returns all coverages in a coverage store'''
+        """Returns all coverages in a coverage store"""
         cs_url = url(
             self.service_url,
             [
@@ -699,7 +705,7 @@ class Catalog(object):
         return coverages
 
     def mosaic_coverage_schema(self, coverage, store, workspace):
-        '''Returns the schema of a coverage in a coverage store'''
+        """Returns the schema of a coverage in a coverage store"""
         cs_url = url(
             self.service_url,
             [
@@ -727,19 +733,20 @@ class Catalog(object):
         return schema
 
     def mosaic_granules(self, coverage, store, filter=None, limit=None, offset=None):
-        '''List granules of an imagemosaic'''
+        """List granules of an imagemosaic"""
         return self.list_granules(coverage, store, filter=None, limit=None, offset=None)
 
     def mosaic_delete_granule(self, coverage, store, granule_id):
-        '''Deletes a granule of an existing imagemosaic'''
+        """Deletes a granule of an existing imagemosaic"""
         self.delete_granule(coverage, store, granule_id)
 
     def publish_featuretype(self, name, store, native_crs, srs=None, jdbc_virtual_table=None):
-        '''Publish a featuretype from data in an existing store'''
+        """Publish a featuretype from data in an existing store"""
         # @todo native_srs doesn't seem to get detected, even when in the DB
         # metadata (at least for postgis in geometry_columns) and then there
         # will be a misconfigured layer
-        if native_crs is None: raise ValueError("must specify native_crs")
+        if native_crs is None:
+            raise ValueError("must specify native_crs")
         srs = srs or native_crs
         feature_type = FeatureType(self, store.workspace, store, name)
         # because name is the in FeatureType base class, work around that
@@ -754,11 +761,12 @@ class Catalog(object):
             "Accept": "application/xml"
         }
 
-        resource_url=store.resource_url
+        resource_url = store.resource_url
+
         if jdbc_virtual_table is not None:
-            feature_type.metadata=({'JDBC_VIRTUAL_TABLE':jdbc_virtual_table})
-            resource_url=url(self.service_url,
-                ["workspaces", store.workspace.name, "datastores", store.name, "featuretypes.json"])
+            feature_type.metadata = ({'JDBC_VIRTUAL_TABLE': jdbc_virtual_table})
+            resource_url = url(self.service_url,
+                               ["workspaces", store.workspace.name, "datastores", store.name, "featuretypes.json"])
 
         self.request(method='post', url=resource_url, headers=headers, data=feature_type.message())
         feature_type.fetch()
@@ -868,7 +876,7 @@ class Catalog(object):
         groups = self.get_xml(groups_url)
         return [LayerGroup(self, g.find("name").text, wks_name) for g in groups.findall("layerGroup")]
 
-    def create_layergroup(self, name, layers = (), styles = (), bounds = None, workspace = None):
+    def create_layergroup(self, name, layers=(), styles=(), bounds=None, workspace=None):
         if any(g.name == name for g in self.get_layergroups()):
             raise ConflictingDataError("LayerGroup named %s already exists!" % name)
         else:
@@ -876,14 +884,13 @@ class Catalog(object):
                                      workspace)
 
     def get_style(self, name, workspace=None):
-        '''Find a Style in the catalog if one exists that matches the given name.
+        """Find a Style in the catalog if one exists that matches the given name.
         If name is fully qualified in the form of `workspace:name` the workspace
         may be ommitted.
 
         :param name: name of the style to find
         :param workspace: optional workspace to search in
-        '''
-        style = None
+        """
         if ':' in name:
             workspace, name = name.split(':', 1)
         try:
@@ -915,7 +922,7 @@ class Catalog(object):
         description = self.get_xml(styles_url)
         return [Style(self, s.find('name').text) for s in description.findall("style")]
 
-    def create_style(self, name, data, overwrite = False, workspace=None, style_format="sld10", raw=False):
+    def create_style(self, name, data, overwrite=False, workspace=None, style_format="sld10", raw=False):
         style = self.get_style(name, workspace)
         if not overwrite and style is not None:
             raise ConflictingDataError("There is already a style named %s" % name)
@@ -930,7 +937,8 @@ class Catalog(object):
 
             create_href = style.create_href
             response = self.request(method='post', url=create_href, headers=headers, data=data)
-            if response.status_code < 200 or response.status_code > 299: raise UploadError(response.text)
+            if response.status_code < 200 or response.status_code > 299:
+                raise UploadError(response.text)
 
         # Style with given name already exists, so update if overwrite is True
         elif style is not None and overwrite:
@@ -943,7 +951,8 @@ class Catalog(object):
             if raw:
                 body_href += "?raw=true"
             response = self.request(method='put', url=body_href, headers=headers, data=data)
-            if response.status_code < 200 or response.status_code > 299: raise UploadError(response.text)
+            if response.status_code < 200 or response.status_code > 299:
+                raise UploadError(response.text)
 
             self._cache.pop(style.href, None)
             self._cache.pop(style.body_href, None)
@@ -953,10 +962,10 @@ class Catalog(object):
 
     def create_workspace(self, name, uri):
         xml = ("<namespace>"
-            "<prefix>{name}</prefix>"
-            "<uri>{uri}</uri>"
-            "</namespace>").format(name=name, uri=uri)
-        headers = { "Content-Type": "application/xml" }
+               "<prefix>{name}</prefix>"
+               "<uri>{uri}</uri>"
+               "</namespace>").format(name=name, uri=uri)
+        headers = {"Content-Type": "application/xml"}
         workspace_url = self.service_url + "/namespaces/"
 
         response = self.request(method='post', url=workspace_url, headers=headers, data=xml)
@@ -968,12 +977,12 @@ class Catalog(object):
         return workspaces[0] if workspaces else None
 
     def get_workspaces(self, names=None):
-        '''
+        """
           Returns a list of workspaces in the catalog.
           If names is specified, will only return workspaces that match.
           names can either be a comma delimited string or an array.
           Will return an empty list if no workspaces are found.
-        '''
+        """
         if names is None:
             names = []
         elif isinstance(names, basestring):
@@ -993,12 +1002,11 @@ class Catalog(object):
         return workspaces
 
     def get_workspace(self, name):
-        '''
+        """
           returns a single workspace object.
           Will return None if no workspace is found.
           Will raise an error if more than one workspace with the same name is found.
-        '''
-
+        """
         workspaces = self.get_workspaces(name)
 
         if len(workspaces) == 0:
@@ -1019,7 +1027,7 @@ class Catalog(object):
             name = name.name
         workspace = self.get_workspace(name)
         if workspace is not None:
-            headers = { "Content-Type": "application/xml" }
+            headers = {"Content-Type": "application/xml"}
             default_workspace_url = self.service_url + "/workspaces/default.xml"
             msg = "<workspace><name>%s</name></workspace>" % name
             response = requests.put(default_workspace_url, headers=headers, data=msg, auth=self._auth,

@@ -1,8 +1,8 @@
-'''
+"""
 gsconfig is a python library for manipulating a GeoServer instance via the GeoServer RESTConfig API.
 
 The project is distributed under a MIT License .
-'''
+"""
 
 __author__ = "David Winslow"
 __copyright__ = "Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
@@ -11,19 +11,21 @@ __license__ = "MIT"
 from geoserver.catalog import Catalog
 
 demo = Catalog("http://localhost:8080/geoserver/rest",
-    "admin", "geoserver")
+               "admin", "geoserver")
 
 live = Catalog("http://localhost:8080/geoserver2/rest",
-    "admin", "geoserver")
+               "admin", "geoserver")
 
 groupname = "Wayne"
 prefix = "wayne_"
+
 
 def resolve(layer, style):
     if style is not None:
         return (layer, style)
     else:
         return (layer, demo.get_layer(layer).default_style.name)
+
 
 g = demo.get_layergroup("groupname")
 resolved = [resolve(l, s) for (l, s) in zip(g.layers, g.styles)]

@@ -29,16 +29,16 @@ def geoserverLocationSsh():
 
 def serverLocationBasicAuth():
     """Set server URL for http connection."""
-    return "http://"+geoserverLocation()+"/geoserver"
+    return "http://" + geoserverLocation() + "/geoserver"
 
 
 def serverLocationPkiAuth():
     """Set server URL for https connection."""
-    return "https://"+geoserverLocationSsh()+"/geoserver"
+    return "https://" + geoserverLocationSsh() + "/geoserver"
 
 
 GSPARAMS = dict(
-    GSURL=serverLocationBasicAuth()+'/rest',
+    GSURL=serverLocationBasicAuth() + '/rest',
     GSUSER=GSUSER,
     GSPASSWORD=GSPASSWORD,
     GEOSERVER_HOME='',
