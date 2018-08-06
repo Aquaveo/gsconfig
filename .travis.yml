@@ -8,6 +8,25 @@ services:
  - postgresql
 matrix:
   include:
+    # PYTHON 3.7
+    - python: "3.7"
+      env: GS_VERSION=2.4.x
+    - python: "3.7"
+      env: GS_VERSION=2.5.x
+    - python: "3.7"
+      env: GS_VERSION=2.6.x
+    - python: "3.7"
+      env: GS_VERSION=2.7.x
+    - python: "3.7"
+      env: GS_VERSION=2.8.x
+    - python: "3.7"
+      env: GS_VERSION=2.9.x
+    - python: "3.7"
+      env: GS_VERSION=2.10.x
+    - python: "3.7"
+      env: GS_VERSION=2.11.x
+    - python: "3.7"
+      env: GS_VERSION=2.12.x
     # PYTHON 3.6
     - python: "3.6"
       env: GS_VERSION=2.4.x
