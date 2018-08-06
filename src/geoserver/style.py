@@ -4,7 +4,7 @@ gsconfig is a python library for manipulating a GeoServer instance via the GeoSe
 The project is distributed under a MIT License .
 """
 
-__copyright__ = "Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
+__copyright__ = "Copyright 2018 Aquaveo, Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
 __license__ = "MIT"
 __author__ = "David Winslow"
 
