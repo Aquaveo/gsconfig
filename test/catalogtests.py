@@ -133,8 +133,6 @@ class CatalogTests(unittest.TestCase):
         self.assertTrue('<html xmlns="http://www.w3.org/1999/xhtml"' in str(about_html))
 
     def testGSVersion(self):
-        import pdb
-        pdb.set_trace()
         version = self.cat.gsversion()
         pat = re.compile('\d\.\d+(\.[\dx]|-SNAPSHOT)')
         self.assertTrue(pat.match('2.2.x'))
