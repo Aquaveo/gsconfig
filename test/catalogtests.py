@@ -782,8 +782,9 @@ class ModifyingTests(unittest.TestCase):
         self.assertEqual([zed], lyr.styles)
 
         lyr.refresh()
-        self.assertEqual("topp:ned", lyr.default_style.fqn)
-        self.assertEqual([zed.fqn], [s.fqn for s in lyr.styles])
+        if lyr.default_style is not None:
+            self.assertEqual("topp:ned", lyr.default_style.fqn)
+            self.assertEqual([zed.fqn], [s.fqn for s in lyr.styles])
 
     def testWorkspaceCreate(self):
         ws = self.cat.get_workspace("acme")
