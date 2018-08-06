@@ -329,7 +329,7 @@ class Catalog(object):
 
         self._cache.clear()
         if response.status_code < 200 or response.status_code > 299:
-            raise UploadError('{} - "{}"'.format(response.status_code, response.text))
+            raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         return self.get_resource(name, store=store, workspace=workspace)
 
     def add_data_to_store(self, store, name, data, workspace=None, overwrite=False, charset=None):
@@ -353,7 +353,7 @@ class Catalog(object):
             params["update"] = "overwrite"
         if charset is not None:
             params["charset"] = charset
-        params["filename"] = "{}.zip".format(name)
+        params["filename"] = "{0}.zip".format(name)
         params["target"] = "shp"
         # params["configure"] = "all"
 
@@ -368,7 +368,7 @@ class Catalog(object):
                                         auth=(self.username, self.password))
                 self._cache.clear()
                 if response.status_code != 201:
-                    raise UploadError('{} - "{}"'.format(response.status_code, response.text))
+                    raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         finally:
             # os.unlink(bundle)
             pass
@@ -407,7 +407,7 @@ class Catalog(object):
             response = self.request(method='put', url=ds_url, headers=headers, data=message, params=params)
             self._cache.clear()
             if response.status_code != 201:
-                raise UploadError('{} - "{}"'.format(response.status_code, response.text))
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         finally:
             message.close()
             os.unlink(archive)
@@ -469,7 +469,7 @@ class Catalog(object):
             response = self.request(method='put', url=cs_url, headers=headers, data=upload_data, params=params)
             self._cache.clear()
             if response.status_code != 201:
-                raise UploadError('{} - "{}"'.format(response.status_code, response.text))
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         finally:
             if getattr(upload_data, "close", None) is not None:
                 upload_data.close()
@@ -527,7 +527,7 @@ class Catalog(object):
             response = self.request(method='put', url=cs_url, headers=headers, data=message)
             self._cache.clear()
             if response.status_code != 201:
-                raise UploadError('{} - "{}"'.format(response.status_code, response.text))
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         finally:
             if getattr(message, "close", None) is not None:
                 message.close()
@@ -577,7 +577,7 @@ class Catalog(object):
         try:
             response = self.request(method='post', url=cs_url, headers=headers, data=upload_data, params=params)
             if response.status_code != 202:
-                raise UploadError('{} - "{}"'.format(response.status_code, response.text))
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         finally:
             if getattr(upload_data, "close", None) is not None:
                 upload_data.close()
@@ -620,7 +620,7 @@ class Catalog(object):
 
         response = self.request(method='delete', url=cs_url, headers=headers)
         if response.status_code != 200:
-            raise FailedRequestError('{} - "{}"'.format(response.status_code, response.text))
+            raise FailedRequestError('{0} - "{1}"'.format(response.status_code, response.text))
         self._cache.clear()
         return "Deleted granule"
 
@@ -666,7 +666,7 @@ class Catalog(object):
 
         response = self.request(method='get', url=cs_url, headers=headers, params=params)
         if response.status_code != 200:
-            raise FailedRequestError('{} - "{}"'.format(response.status_code, response.text))
+            raise FailedRequestError('{0} - "{1}"'.format(response.status_code, response.text))
         self._cache.clear()
         granules = response.json(object_hook=_decode_dict)
         return granules
@@ -699,7 +699,7 @@ class Catalog(object):
 
         response = self.request(method='get', url=cs_url, headers=headers)
         if response.status_code != 200:
-            raise FailedRequestError('{} - "{}"'.format(response.status_code, response.text))
+            raise FailedRequestError('{0} - "{1}"'.format(response.status_code, response.text))
         self._cache.clear()
         coverages = response.json(object_hook=_decode_dict)
         return coverages
@@ -727,7 +727,7 @@ class Catalog(object):
 
         response = self.request(method='get', url=cs_url, headers=headers)
         if response.status_code != 200:
-            raise FailedRequestError('{} - "{}"'.format(response.status_code, response.text))
+            raise FailedRequestError('{0} - "{1}"'.format(response.status_code, response.text))
         self._cache.clear()
         schema = response.json(object_hook=_decode_dict)
         return schema
@@ -936,14 +936,14 @@ class Catalog(object):
                 "Content-type": "text/xml",
                 "Accept": "application/xml"
             }
-            xml = "<style><name>{}</name><filename>{}</filename></style>".format(
+            xml = "<style><name>{0}</name><filename>{1}</filename></style>".format(
                 name, name + '.sld'
             )
             create_href = style.create_href
             response = self.request(method='post', url=create_href, headers=headers, data=xml)
 
             if response.status_code < 200 or response.status_code > 299:
-                raise UploadError('{} - "{}"'.format(response.status_code, response.text))
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
 
             # 2. Upload file for style
             headers = {
@@ -954,7 +954,7 @@ class Catalog(object):
             body_href = style.body_href
             response = self.request(method='put', url=body_href, headers=headers, data=data)
             if response.status_code < 200 or response.status_code > 299:
-                raise UploadError('{} - "{}"'.format(response.status_code, response.text))
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
 
         # Style with given name already exists, so update if overwrite is True
         elif style is not None and overwrite:
@@ -968,13 +968,13 @@ class Catalog(object):
                 body_href += "?raw=true"
             response = self.request(method='put', url=body_href, headers=headers, data=data)
             if response.status_code < 200 or response.status_code > 299:
-                raise UploadError('{} - "{}"'.format(response.status_code, response.text))
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
 
             self._cache.pop(style.href, None)
             self._cache.pop(style.body_href, None)
         # Style with given name already exists, but overwrite not allowed, so raise exception
         else:
-            raise ConflictingDataError('Style already exists with name: "{}"'.format(style.fqn))
+            raise ConflictingDataError('Style already exists with name: "{0}"'.format(style.fqn))
 
     def create_workspace(self, name, uri):
         xml = ("<namespace>"
