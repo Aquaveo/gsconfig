@@ -1,30 +1,90 @@
 language: python
 addons:
-  postgresql: "9.3"
+  postgresql: "9.6"
+  apt:
+    packages:
+      - postgresql-9.6-postgis-2.3
 services:
  - postgresql
 matrix:
   include:
-    - python: "2.6"
+    # PYTHON 3.6
+    - python: "3.6"
       env: GS_VERSION=2.4.x
-    - python: "2.6"
+    - python: "3.6"
       env: GS_VERSION=2.5.x
-    - python: "2.6"
+    - python: "3.6"
       env: GS_VERSION=2.6.x
-    - python: "2.6"
+    - python: "3.6"
       env: GS_VERSION=2.7.x
-    - python: "2.6"
+    - python: "3.6"
+      env: GS_VERSION=2.8.x
+    - python: "3.6"
+      env: GS_VERSION=2.9.x
+    - python: "3.6"
+      env: GS_VERSION=2.10.x
+    - python: "3.6"
+      env: GS_VERSION=2.11.x
+    - python: "3.6"
+      env: GS_VERSION=2.12.x
+    # PYTHON 3.5
+    - python: "3.5"
+      env: GS_VERSION=2.4.x
+    - python: "3.5"
+      env: GS_VERSION=2.5.x
+    - python: "3.5"
+      env: GS_VERSION=2.6.x
+    - python: "3.5"
+      env: GS_VERSION=2.7.x
+    - python: "3.5"
+      env: GS_VERSION=2.8.x
+    - python: "3.5"
+      env: GS_VERSION=2.9.x
+    - python: "3.5"
+      env: GS_VERSION=2.10.x
+    - python: "3.5"
+      env: GS_VERSION=2.11.x
+    - python: "3.5"
+      env: GS_VERSION=2.12.x
+    # PYTHON 3.4
+    - python: "3.4"
+      env: GS_VERSION=2.4.x
+    - python: "3.4"
+      env: GS_VERSION=2.5.x
+    - python: "3.4"
+      env: GS_VERSION=2.6.x
+    - python: "3.4"
+      env: GS_VERSION=2.7.x
+    - python: "3.4"
+      env: GS_VERSION=2.8.x
+    - python: "3.4"
+      env: GS_VERSION=2.9.x
+    - python: "3.4"
+      env: GS_VERSION=2.10.x
+    - python: "3.4"
+      env: GS_VERSION=2.11.x
+    - python: "3.4"
+      env: GS_VERSION=2.12.x
+    # PYTHON 2.7
+    - python: "2.7"
+      env: GS_VERSION=2.4.x
+    - python: "2.7"
+      env: GS_VERSION=2.5.x
+    - python: "2.7"
+      env: GS_VERSION=2.6.x
+    - python: "2.7"
+      env: GS_VERSION=2.7.x
+    - python: "2.7"
       env: GS_VERSION=2.8.x
     - python: "2.7"
-      env: GS_VERSION=2.4.x
+      env: GS_VERSION=2.9.x
     - python: "2.7"
-      env: GS_VERSION=2.5.x
+      env: GS_VERSION=2.10.x
     - python: "2.7"
-      env: GS_VERSION=2.6.x
+      env: GS_VERSION=2.11.x
     - python: "2.7"
-      env: GS_VERSION=2.7.x
-    - python: "2.7"
-      env: GS_VERSION=2.8.x
+      env: GS_VERSION=2.12.x
+
 install:
   - sudo apt-get -qq -y update
   - sudo apt-get install -y --force-yes openjdk-7-jdk --no-install-recommends
@@ -36,6 +96,7 @@ install:
   - popd
   - pip install .
   - pip install psycopg2
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.6" ]]; then pip install unittest2; fi
 before_script:
   - psql -U postgres -c "create extension postgis"
   - psql -U postgres -c "create database db;"
@@ -49,6 +110,3 @@ notifications:
   email:
     on_success: never
     on_failure: never
-branches:
-  only:
-    - master

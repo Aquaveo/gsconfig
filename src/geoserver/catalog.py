@@ -1,45 +1,41 @@
-'''
+"""
 gsconfig is a python library for manipulating a GeoServer instance via the GeoServer RESTConfig API.
 
 The project is distributed under a MIT License .
-'''
+"""
 
 __author__ = "David Winslow"
-__copyright__ = "Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
+__copyright__ = "Copyright 2018 Aquaveo, Copyright 2012-2015 Boundless, Copyright 2010-2012 OpenPlans"
 __license__ = "MIT"
+
+from future import standard_library
+standard_library.install_aliases()
+from builtins import map
+from builtins import str
+from builtins import object
+from past.builtins import basestring
 
 from datetime import datetime, timedelta
 import logging
-import json
+from geoserver.exceptions import UploadError, ConflictingDataError, \
+    AmbiguousRequestError, FailedRequestError
 from geoserver.layer import Layer
 from geoserver.resource import FeatureType, Coverage
 from geoserver.store import coveragestore_from_index, datastore_from_index, \
     wmsstore_from_index, UnsavedDataStore, \
     UnsavedCoverageStore, UnsavedWmsStore
 from geoserver.style import Style
-from geoserver.support import prepare_upload_bundle, url, _decode_list, _decode_dict, JDBCVirtualTable
+from geoserver.support import prepare_upload_bundle, url, _decode_dict
 from geoserver.layergroup import LayerGroup, UnsavedLayerGroup
 from geoserver.workspace import workspace_from_index, Workspace
 import os
-import httplib2
+import requests
 from xml.etree.ElementTree import XML
 from xml.parsers.expat import ExpatError
 
-from urlparse import urlparse
 
 logger = logging.getLogger("gsconfig.catalog")
 
-class UploadError(Exception):
-    pass
-
-class ConflictingDataError(Exception):
-    pass
-
-class AmbiguousRequestError(Exception):
-    pass
-
-class FailedRequestError(Exception):
-    pass
 
 def _name(named):
     """Get the name out of an object.  This varies based on the type of the input:
@@ -51,10 +47,11 @@ def _name(named):
     """
     if isinstance(named, basestring) or named is None:
         return named
-    elif hasattr(named, 'name') and isinstance(named.name, basestring):
+    elif getattr(named, 'name', None) is not None and isinstance(named.name, basestring):
         return named.name
     else:
         raise ValueError("Can't interpret %s as a name or a configuration object" % named)
+
 
 class Catalog(object):
     """
@@ -77,77 +74,56 @@ class Catalog(object):
             self.service_url = self.service_url.strip("/")
         self.username = username
         self.password = password
-        self.disable_ssl_cert_validation = disable_ssl_certificate_validation
-        self.http = None
-        self.setup_connection()
 
+        self._verify = not disable_ssl_certificate_validation
+        self._auth = (username, password)
         self._cache = dict()
         self._version = None
-
-    def __getstate__(self):
-        '''http connection cannot be pickled'''
-        state = dict(vars(self))
-        state.pop('http', None)
-        state['http'] = None
-        return state
-
-    def __setstate__(self, state):
-        '''restore http connection upon unpickling'''
-        self.__dict__.update(state)
-        self.setup_connection()
 
     @property
     def gs_base_url(self):
         return self.service_url.rstrip("rest")
 
-    def setup_connection(self):
-        self.http = httplib2.Http(
-            disable_ssl_certificate_validation=self.disable_ssl_cert_validation)
-        self.http.add_credentials(self.username, self.password)
-        netloc = urlparse(self.service_url).netloc
-        self.http.authorizations.append(
-            httplib2.BasicAuthentication(
-                (self.username, self.password),
-                netloc,
-                self.service_url,
-                {},
-                None,
-                None,
-                self.http
-            ))
+    def request(self, url, method='get', data=None, params=None, headers=None):
+        """
+        Perform authenticated request.
+        """
+        return requests.request(method.lower(), url, data=data, headers=headers, params=params,
+                                auth=self._auth, verify=self._verify)
 
     def about(self):
-        '''return the about information as a formatted html'''
+        """return the about information as a formatted html"""
         about_url = self.service_url + "/about/version.html"
-        response, content = self.http.request(about_url, "GET")
-        if response.status == 200:
-            return content
+        response = self.request(method='get', url=about_url)
+        if response.status_code == 200:
+            return response.text
         raise FailedRequestError('Unable to determine version: %s' %
-                                 (content or response.status))
+                                 (response.text or response.status_code))
 
     def gsversion(self):
-        '''obtain the version or just 2.2.x if < 2.3.x
+        """obtain the version or just 2.2.x if < 2.3.x
         Raises:
             FailedRequestError: If the request fails.
-        '''
-        if self._version: return self._version
+        """
+        if self._version:
+            return self._version
         about_url = self.service_url + "/about/version.xml"
-        response, content = self.http.request(about_url, "GET")
+        response = self.request(method='get', url=about_url)
         version = None
-        if response.status == 200:
-            dom = XML(content)
+        if response.status_code == 200:
+            dom = XML(response.text)
             resources = dom.findall("resource")
             for resource in resources:
                 if resource.attrib["name"] == "GeoServer":
                     try:
                         version = resource.find("Version").text
                         break
-                    except:
+                    except Exception:
                         pass
 
-        #This will raise an exception if the catalog is not available
-        #If the catalog is available but could not return version information,
-        #it is an old version that does not support that
+        # This will raise an exception if the catalog is not available
+        # If the catalog is available but could not return version information,
+        # it is an old version that does not support that
         if version is None:
             self.get_workspaces()
             # just to inform that version < 2.3.x
@@ -162,31 +138,29 @@ class Catalog(object):
         """
         rest_url = config_object.href
 
-        #params aren't supported fully in httplib2 yet, so:
-        params = []
+        # Assemble params
+        params = {}
 
         # purge deletes the SLD from disk when a style is deleted
         if purge:
-            params.append("purge=" + str(purge))
+            params["purge"] = str(purge)
 
         # recurse deletes the resource when a layer is deleted.
         if recurse:
-            params.append("recurse=true")
-
-        if params:
-            rest_url = rest_url + "?" + "&".join(params)
+            params["recurse"] = "true"
 
         headers = {
             "Content-type": "application/xml",
             "Accept": "application/xml"
         }
-        response, content = self.http.request(rest_url, "DELETE", headers=headers)
+        response = self.request(method='delete', url=rest_url, headers=headers, params=params)
         self._cache.clear()
 
-        if response.status == 200:
-            return (response, content)
+        if response.status_code == 200:
+            return (response, response.text)
         else:
-            raise FailedRequestError("Tried to make a DELETE request to %s but got a %d status code: \n%s" % (rest_url, response.status, content))
+            raise FailedRequestError("Tried to make a DELETE request to %s but got a %d status code: \n%s" % (
+                rest_url, response.status_code, response.text))
 
     def get_xml(self, rest_url):
         logger.debug("GET %s", rest_url)
@@ -199,7 +173,7 @@ class Catalog(object):
         def parse_or_raise(xml):
             try:
                 return XML(xml)
-            except (ExpatError, SyntaxError), e:
+            except (ExpatError, SyntaxError) as e:
                 msg = "GeoServer gave non-XML response for [GET %s]: %s"
                 msg = msg % (rest_url, xml)
                 raise Exception(msg, e)
@@ -208,22 +182,23 @@ class Catalog(object):
             raw_text = cached_response[1]
             return parse_or_raise(raw_text)
         else:
-            response, content = self.http.request(rest_url)
-            if response.status == 200:
-                self._cache[rest_url] = (datetime.now(), content)
-                return parse_or_raise(content)
+            response = self.request(method='get', url=rest_url)
+            if response.status_code == 200:
+                self._cache[rest_url] = (datetime.now(), response.text)
+                return parse_or_raise(response.text)
             else:
-                raise FailedRequestError("Tried to make a GET request to %s but got a %d status code: \n%s" % (rest_url, response.status, content))
+                raise FailedRequestError("Tried to make a GET request to %s but got a %d status code: \n%s" % (
+                    rest_url, response.status_code, response.text))
 
     def reload(self):
         reload_url = url(self.service_url, ['reload'])
-        response = self.http.request(reload_url, "POST")
+        response = self.request(method='post', url=reload_url)
         self._cache.clear()
         return response
 
     def reset(self):
         reload_url = url(self.service_url, ['reset'])
-        response = self.http.request(reload_url, "POST")
+        response = self.request(method='post', url=reload_url)
         self._cache.clear()
         return response
 
@@ -241,20 +216,19 @@ class Catalog(object):
             "Accept": content_type
         }
         logger.debug("%s %s", obj.save_method, obj.href)
-        response = self.http.request(rest_url, obj.save_method, message, headers)
-        headers, body = response
+        response = self.request(method=obj.save_method, url=rest_url, headers=headers, data=message)
         self._cache.clear()
-        if 400 <= int(headers['status']) < 600:
+        if 400 <= response.status_code < 600:
             raise FailedRequestError("Error code (%s) from GeoServer: %s" %
-                (headers['status'], body))
+                                     (response.status_code, response.text))
         return response
 
     def get_store(self, name, workspace=None):
-        '''
+        """
           Returns a single store object.
           Will return None if no store is found.
           Will raise an error if more than one store with the same name is found.
-        '''
+        """
 
         stores = self.get_stores(workspace=workspace, names=name)
 
@@ -263,20 +237,22 @@ class Catalog(object):
         elif stores.__len__() > 1:
             multiple_stores = []
             for s in stores:
-                multiple_stores.append("{workspace_name}:{store_name}".format(workspace_name=s.workspace.name, store_name=s.name))
+                multiple_stores.append("{workspace_name}:{store_name}".format(
+                    workspace_name=s.workspace.name, store_name=s.name))
 
-            raise AmbiguousRequestError("Multiple stores found named {name} - {stores}".format(name=name, stores=", ".join(multiple_stores)))
+            raise AmbiguousRequestError("Multiple stores found named {name} - {stores}".format(
+                name=name, stores=", ".join(multiple_stores)))
         else:
             return stores[0]
 
     def get_stores(self, names=None, workspace=None):
-        '''
+        """
           Returns a list of stores in the catalog. If workspace is specified will only return stores in that workspace.
           If names is specified, will only return stores that match.
           names can either be a comma delimited string or an array.
           If names is specified will only return stores that match the name.
           Will return an empty list if no stores are found.
-        '''
+        """
 
         workspaces = []
         if workspace is not None:
@@ -285,8 +261,8 @@ class Catalog(object):
                 if ws:
                     # There can only be one workspace with this name
                     workspaces.append(ws[0])
-            elif hasattr(workspace, 'resource_type') and workspace.resource_type == "workspace":
-              workspaces.append(workspace)
+            elif getattr(workspace, 'resource_type', None) is not None and workspace.resource_type == "workspace":
+                workspaces.append(workspace)
         else:
             workspaces = self.get_workspaces()
 
@@ -303,7 +279,7 @@ class Catalog(object):
         if names is None:
             names = []
         elif isinstance(names, basestring):
-            names = map(str.strip, str(names).split(','))
+            names = list(map(str.strip, str(names).split(',')))
         if stores and names:
             named_stores = []
             for store in stores:
@@ -320,7 +296,7 @@ class Catalog(object):
             workspace = self.get_default_workspace()
         return UnsavedDataStore(self, name, workspace)
 
-    def create_coveragestore2(self, name, workspace = None):
+    def create_coveragestore2(self, name, workspace=None):
         """
         Hm we already named the method that creates a coverage *resource*
         create_coveragestore... time for an API break?
@@ -331,7 +307,7 @@ class Catalog(object):
             workspace = self.get_default_workspace()
         return UnsavedCoverageStore(self, name, workspace)
 
-    def create_wmsstore(self, name, workspace = None, user = None, password = None):
+    def create_wmsstore(self, name, workspace=None, user=None, password=None):
         if workspace is None:
             workspace = self.get_default_workspace()
         return UnsavedWmsStore(self, name, workspace, user, password)
@@ -349,18 +325,20 @@ class Catalog(object):
 
         wms_url = store.href.replace('.xml', '/wmslayers')
         data = "<wmsLayer><name>%s</name><nativeName>%s</nativeName></wmsLayer>" % (name, nativeName)
-        headers, response = self.http.request(wms_url, "POST", data, headers)
+        response = self.request(method='post', url=wms_url, headers=headers, data=data)
 
         self._cache.clear()
-        if headers.status < 200 or headers.status > 299: raise UploadError(response)
+        if response.status_code < 200 or response.status_code > 299:
+            raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         return self.get_resource(name, store=store, workspace=workspace)
 
-    def add_data_to_store(self, store, name, data, workspace=None, overwrite = False, charset = None):
+    def add_data_to_store(self, store, name, data, workspace=None, overwrite=False, charset=None):
         if isinstance(store, basestring):
             store = self.get_store(store, workspace=workspace)
         if workspace is not None:
             workspace = _name(workspace)
-            assert store.workspace.name == workspace, "Specified store (%s) is not in specified workspace (%s)!" % (store, workspace)
+            assert store.workspace.name == workspace, \
+                "Specified store (%s) is not in specified workspace (%s)!" % (store, workspace)
         else:
             workspace = store.workspace.name
         store = store.name
@@ -375,21 +353,22 @@ class Catalog(object):
             params["update"] = "overwrite"
         if charset is not None:
             params["charset"] = charset
-        params["filename"] = "{}.zip".format(name)
+        params["filename"] = "{0}.zip".format(name)
         params["target"] = "shp"
         # params["configure"] = "all"
 
-        headers = { 'Content-Type': 'application/zip', 'Accept': 'application/xml' }
+        headers = {'Content-Type': 'application/zip', 'Accept': 'application/xml'}
         upload_url = url(self.service_url,
-            ["workspaces", workspace, "datastores", store, "file.shp"], params)
+                         ["workspaces", workspace, "datastores", store, "file.shp"])
 
         try:
             with open(bundle, "rb") as f:
-                data = f.read()
-                headers, response = self.http.request(upload_url, "PUT", data, headers)
+                files = {'file': f}
+                response = requests.put(upload_url, files=files, headers=headers, params=params,
+                                        auth=(self.username, self.password))
                 self._cache.clear()
-                if headers.status != 201:
-                    raise UploadError(response)
+                if response.status_code != 201:
+                    raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         finally:
             # os.unlink(bundle)
             pass
@@ -410,14 +389,14 @@ class Catalog(object):
         if charset is not None:
             params['charset'] = charset
         ds_url = url(self.service_url,
-            ["workspaces", workspace, "datastores", name, "file.shp"], params)
+                     ["workspaces", workspace, "datastores", name, "file.shp"])
 
         # PUT /workspaces/<ws>/datastores/<ds>/file.shp
         headers = {
             "Content-type": "application/zip",
             "Accept": "application/xml"
         }
-        if isinstance(data,dict):
+        if isinstance(data, dict):
             logger.debug('Data is NOT a zipfile')
             archive = prepare_upload_bundle(name, data)
         else:
@@ -425,11 +404,10 @@ class Catalog(object):
             archive = data
         message = open(archive, 'rb')
         try:
-            # response = self.requests.post(ds_url, files={archive: open(archive, 'rb')})
-            headers, response = self.http.request(ds_url, "PUT", message, headers)
+            response = self.request(method='put', url=ds_url, headers=headers, data=message, params=params)
             self._cache.clear()
-            if headers.status != 201:
-                raise UploadError(response)
+            if response.status_code != 201:
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         finally:
             message.close()
             os.unlink(archive)
@@ -452,12 +430,12 @@ class Catalog(object):
         if configure is not None:
             params['configure'] = "none"
 
-        if isinstance(data, file) or os.path.splitext(data)[-1] == ".zip":
+        if getattr(data, 'read', None) is not None or os.path.splitext(data)[-1] == ".zip":
             store_type = "file.imagemosaic"
             contet_type = "application/zip"
             if isinstance(data, basestring):
                 upload_data = open(data, 'rb')
-            elif isinstance(data, file):
+            elif getattr(data, 'read', None) is not None:
                 # Adding this check only to pass tests. We should drop support for passing a file object
                 upload_data = data
             else:
@@ -479,22 +457,21 @@ class Catalog(object):
                 name,
                 store_type
             ],
-            params
         )
 
         # PUT /workspaces/<ws>/coveragestores/<name>/file.imagemosaic?configure=none
-        req_headers = {
+        headers = {
             "Content-type": contet_type,
             "Accept": "application/xml"
         }
 
         try:
-            resp_headers, response = self.http.request(cs_url, "PUT", upload_data, req_headers)
+            response = self.request(method='put', url=cs_url, headers=headers, data=upload_data, params=params)
             self._cache.clear()
-            if resp_headers.status != 201:
-                raise UploadError(response)
+            if response.status_code != 201:
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         finally:
-            if hasattr(upload_data, "close"):
+            if getattr(upload_data, "close", None) is not None:
                 upload_data.close()
 
         return "Image Mosaic created"
@@ -542,31 +519,30 @@ class Catalog(object):
             else:
                 message = data
 
-
         cs_url = url(self.service_url,
-            ["workspaces", workspace.name, "coveragestores", name, store_type + ext],
-            { "configure" : "first", "coverageName" : name})
+                     ["workspaces", workspace.name, "coveragestores", name, store_type + ext],
+                     {"configure": "first", "coverageName": name})
 
         try:
-            headers, response = self.http.request(cs_url, "PUT", message, headers)
+            response = self.request(method='put', url=cs_url, headers=headers, data=message)
             self._cache.clear()
-            if headers.status != 201:
-                raise UploadError(response)
+            if response.status_code != 201:
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         finally:
-            if hasattr(message, "close"):
+            if getattr(message, "close", None) is not None:
                 message.close()
             if archive is not None:
                 os.unlink(archive)
 
     def add_granule(self, data, store, workspace=None):
-        '''Harvest/add a granule into an existing imagemosaic'''
+        """Harvest/add a granule into an existing imagemosaic"""
         ext = os.path.splitext(data)[-1]
         if ext == ".zip":
             type = "file.imagemosaic"
             upload_data = open(data, 'rb')
             headers = {
-              "Content-type": "application/zip",
-              "Accept": "application/xml"
+                "Content-type": "application/zip",
+                "Accept": "application/xml"
             }
         else:
             type = "external.imagemosaic"
@@ -584,7 +560,8 @@ class Catalog(object):
             store_name = store.name
             workspace_name = store.workspace.name
 
-        if workspace_name is None: raise ValueError("Must specify workspace")
+        if workspace_name is None:
+            raise ValueError("Must specify workspace")
 
         cs_url = url(
             self.service_url,
@@ -594,25 +571,22 @@ class Catalog(object):
                 "coveragestores",
                 store_name,
                 type
-            ],
-            params
+            ]
         )
 
         try:
-            headers, response = self.http.request(cs_url, "POST", upload_data, headers)
-            if headers.status != 202:
-                raise UploadError(response)
+            response = self.request(method='post', url=cs_url, headers=headers, data=upload_data, params=params)
+            if response.status_code != 202:
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
         finally:
-            if hasattr(upload_data, "close"):
-                  upload_data.close()
+            if getattr(upload_data, "close", None) is not None:
+                upload_data.close()
 
         self._cache.clear()
         return "Added granule"
 
     def delete_granule(self, coverage, store, granule_id, workspace=None):
-        '''Deletes a granule of an existing imagemosaic'''
-        params = dict()
-
+        """Deletes a granule of an existing imagemosaic"""
         workspace_name = workspace
         if isinstance(store, basestring):
             store_name = store
@@ -620,7 +594,8 @@ class Catalog(object):
             store_name = store.name
             workspace_name = store.workspace.name
 
-        if workspace_name is None: raise ValueError("Must specify workspace")
+        if workspace_name is None:
+            raise ValueError("Must specify workspace")
 
         cs_url = url(
             self.service_url,
@@ -634,8 +609,7 @@ class Catalog(object):
                 "index/granules",
                 granule_id,
                 ".json"
-            ],
-            params
+            ]
         )
 
         # DELETE /workspaces/<ws>/coveragestores/<name>/coverages/<coverage>/index/granules/<granule_id>.json
@@ -644,14 +618,14 @@ class Catalog(object):
             "Accept": "application/json"
         }
 
-        headers, response = self.http.request(cs_url, "DELETE", None, headers)
-        if headers.status != 200:
-            raise FailedRequestError(response)
+        response = self.request(method='delete', url=cs_url, headers=headers)
+        if response.status_code != 200:
+            raise FailedRequestError('{0} - "{1}"'.format(response.status_code, response.text))
         self._cache.clear()
         return "Deleted granule"
 
     def list_granules(self, coverage, store, workspace=None, filter=None, limit=None, offset=None):
-        '''List granules of an imagemosaic'''
+        """List granules of an imagemosaic"""
         params = dict()
 
         if filter is not None:
@@ -668,7 +642,8 @@ class Catalog(object):
             store_name = store.name
             workspace_name = store.workspace.name
 
-        if workspace_name is None: raise ValueError("Must specify workspace")
+        if workspace_name is None:
+            raise ValueError("Must specify workspace")
 
         cs_url = url(
             self.service_url,
@@ -680,8 +655,7 @@ class Catalog(object):
                 "coverages",
                 coverage,
                 "index/granules.json"
-            ],
-            params
+            ]
         )
 
         # GET /workspaces/<ws>/coveragestores/<name>/coverages/<coverage>/index/granules.json
@@ -690,24 +664,23 @@ class Catalog(object):
             "Accept": "application/json"
         }
 
-        headers, response = self.http.request(cs_url, "GET", None, headers)
-        if headers.status != 200:
-            raise FailedRequestError(response)
+        response = self.request(method='get', url=cs_url, headers=headers, params=params)
+        if response.status_code != 200:
+            raise FailedRequestError('{0} - "{1}"'.format(response.status_code, response.text))
         self._cache.clear()
-        granules = json.loads(response, object_hook=_decode_dict)
+        granules = response.json(object_hook=_decode_dict)
         return granules
 
     def harvest_externalgranule(self, data, store):
-        '''Harvest a granule into an existing imagemosaic'''
+        """Harvest a granule into an existing imagemosaic"""
         self.add_granule(data, store)
 
     def harvest_uploadgranule(self, data, store):
-        '''Harvest a granule into an existing imagemosaic'''
+        """Harvest a granule into an existing imagemosaic"""
         self.add_granule(data, store)
 
     def mosaic_coverages(self, store):
-        '''Returns all coverages in a coverage store'''
-        params = dict()
+        """Returns all coverages in a coverage store"""
         cs_url = url(
             self.service_url,
             [
@@ -716,8 +689,7 @@ class Catalog(object):
                 "coveragestores",
                 store.name,
                 "coverages.json"
-            ],
-            params
+            ]
         )
         # GET /workspaces/<ws>/coveragestores/<name>/coverages.json
         headers = {
@@ -725,16 +697,15 @@ class Catalog(object):
             "Accept": "application/json"
         }
 
-        headers, response = self.http.request(cs_url, "GET", None, headers)
-        if headers.status != 200:
-            raise FailedRequestError(response)
+        response = self.request(method='get', url=cs_url, headers=headers)
+        if response.status_code != 200:
+            raise FailedRequestError('{0} - "{1}"'.format(response.status_code, response.text))
         self._cache.clear()
-        coverages = json.loads(response, object_hook=_decode_dict)
+        coverages = response.json(object_hook=_decode_dict)
         return coverages
 
     def mosaic_coverage_schema(self, coverage, store, workspace):
-        '''Returns the schema of a coverage in a coverage store'''
-        params = dict()
+        """Returns the schema of a coverage in a coverage store"""
         cs_url = url(
             self.service_url,
             [
@@ -746,7 +717,6 @@ class Catalog(object):
                 coverage,
                 "index.json"
             ],
-            params
         )
         # GET /workspaces/<ws>/coveragestores/<name>/coverages/<coverage>/index.json
 
@@ -755,27 +725,28 @@ class Catalog(object):
             "Accept": "application/json"
         }
 
-        headers, response = self.http.request(cs_url, "GET", None, headers)
-        if headers.status != 200:
-            raise FailedRequestError(response)
+        response = self.request(method='get', url=cs_url, headers=headers)
+        if response.status_code != 200:
+            raise FailedRequestError('{0} - "{1}"'.format(response.status_code, response.text))
         self._cache.clear()
-        schema = json.loads(response, object_hook=_decode_dict)
+        schema = response.json(object_hook=_decode_dict)
         return schema
 
     def mosaic_granules(self, coverage, store, filter=None, limit=None, offset=None):
-        '''List granules of an imagemosaic'''
+        """List granules of an imagemosaic"""
         return self.list_granules(coverage, store, filter=None, limit=None, offset=None)
 
     def mosaic_delete_granule(self, coverage, store, granule_id):
-        '''Deletes a granule of an existing imagemosaic'''
+        """Deletes a granule of an existing imagemosaic"""
         self.delete_granule(coverage, store, granule_id)
 
     def publish_featuretype(self, name, store, native_crs, srs=None, jdbc_virtual_table=None):
-        '''Publish a featuretype from data in an existing store'''
+        """Publish a featuretype from data in an existing store"""
         # @todo native_srs doesn't seem to get detected, even when in the DB
         # metadata (at least for postgis in geometry_columns) and then there
         # will be a misconfigured layer
-        if native_crs is None: raise ValueError("must specify native_crs")
+        if native_crs is None:
+            raise ValueError("must specify native_crs")
         srs = srs or native_crs
         feature_type = FeatureType(self, store.workspace, store, name)
         # because name is the in FeatureType base class, work around that
@@ -790,14 +761,14 @@ class Catalog(object):
             "Accept": "application/xml"
         }
 
-        resource_url=store.resource_url
-        if jdbc_virtual_table is not None:
-            feature_type.metadata=({'JDBC_VIRTUAL_TABLE':jdbc_virtual_table})
-            params = dict()
-            resource_url=url(self.service_url,
-                ["workspaces", store.workspace.name, "datastores", store.name, "featuretypes.json"], params)
+        resource_url = store.resource_url
 
-        headers, response = self.http.request(resource_url, "POST", feature_type.message(), headers)
+        if jdbc_virtual_table is not None:
+            feature_type.metadata = ({'JDBC_VIRTUAL_TABLE': jdbc_virtual_table})
+            resource_url = url(self.service_url,
+                               ["workspaces", store.workspace.name, "datastores", store.name, "featuretypes.json"])
+
+        self.request(method='post', url=resource_url, headers=headers, data=feature_type.message())
         feature_type.fetch()
         return feature_type
 
@@ -905,7 +876,7 @@ class Catalog(object):
         groups = self.get_xml(groups_url)
         return [LayerGroup(self, g.find("name").text, wks_name) for g in groups.findall("layerGroup")]
 
-    def create_layergroup(self, name, layers = (), styles = (), bounds = None, workspace = None):
+    def create_layergroup(self, name, layers=(), styles=(), bounds=None, workspace=None):
         if any(g.name == name for g in self.get_layergroups()):
             raise ConflictingDataError("LayerGroup named %s already exists!" % name)
         else:
@@ -913,14 +884,13 @@ class Catalog(object):
                                      workspace)
 
     def get_style(self, name, workspace=None):
-        '''Find a Style in the catalog if one exists that matches the given name.
+        """Find a Style in the catalog if one exists that matches the given name.
         If name is fully qualified in the form of `workspace:name` the workspace
         may be ommitted.
 
         :param name: name of the style to find
         :param workspace: optional workspace to search in
-        '''
-        style = None
+        """
         if ':' in name:
             workspace, name = name.split(':', 1)
         try:
@@ -952,61 +922,87 @@ class Catalog(object):
         description = self.get_xml(styles_url)
         return [Style(self, s.find('name').text) for s in description.findall("style")]
 
-    def create_style(self, name, data, overwrite = False, workspace=None, style_format="sld10", raw=False):
+    def create_style(self, name, data, overwrite=False, workspace=None, style_format="sld10", raw=False):
         style = self.get_style(name, workspace)
         if not overwrite and style is not None:
             raise ConflictingDataError("There is already a style named %s" % name)
 
-        if not overwrite or style is None:
+        # No existing style with given name, so create new one with POST (overwrite does not apply)
+        if style is None:
+            style = Style(self, name, workspace, style_format)
+            # Create style using two-step approach:
+            # 1. Create Style in Catalog
             headers = {
-                "Content-type": "application/xml",
+                "Content-type": "text/xml",
                 "Accept": "application/xml"
             }
-            xml = "<style><name>{0}</name><filename>{0}.sld</filename></style>".format(name)
-            style = Style(self, name, workspace, style_format)
-            headers, response = self.http.request(style.create_href, "POST", xml, headers)
-            if headers.status < 200 or headers.status > 299: raise UploadError(response)
+            xml = "<style><name>{0}</name><filename>{1}</filename></style>".format(
+                name, name + '.sld'
+            )
+            create_href = style.create_href
+            response = self.request(method='post', url=create_href, headers=headers, data=xml)
 
-        headers = {
-            "Content-type": style.content_type,
-            "Accept": "application/xml"
-        }
+            if response.status_code < 200 or response.status_code > 299:
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
 
-        body_href = style.body_href
-        if raw:
-            body_href += "?raw=true"
-        headers, response = self.http.request(body_href, "PUT", data, headers)
-        if headers.status < 200 or headers.status > 299: raise UploadError(response)
+            # 2. Upload file for style
+            headers = {
+                "Content-type": style.content_type,
+                "Accept": "application/xml"
+            }
 
-        self._cache.pop(style.href, None)
-        self._cache.pop(style.body_href, None)
+            body_href = style.body_href
+            response = self.request(method='put', url=body_href, headers=headers, data=data)
+            if response.status_code < 200 or response.status_code > 299:
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
+
+        # Style with given name already exists, so update if overwrite is True
+        elif style is not None and overwrite:
+            headers = {
+                "Content-type": style.content_type,
+                "Accept": "application/xml"
+            }
+
+            body_href = style.body_href
+            if raw:
+                body_href += "?raw=true"
+            response = self.request(method='put', url=body_href, headers=headers, data=data)
+            if response.status_code < 200 or response.status_code > 299:
+                raise UploadError('{0} - "{1}"'.format(response.status_code, response.text))
+
+            self._cache.pop(style.href, None)
+            self._cache.pop(style.body_href, None)
+        # Style with given name already exists, but overwrite not allowed, so raise exception
+        else:
+            raise ConflictingDataError('Style already exists with name: "{0}"'.format(style.fqn))
 
     def create_workspace(self, name, uri):
         xml = ("<namespace>"
-            "<prefix>{name}</prefix>"
-            "<uri>{uri}</uri>"
-            "</namespace>").format(name=name, uri=uri)
-        headers = { "Content-Type": "application/xml" }
+               "<prefix>{name}</prefix>"
+               "<uri>{uri}</uri>"
+               "</namespace>").format(name=name, uri=uri)
+        headers = {"Content-Type": "application/xml"}
         workspace_url = self.service_url + "/namespaces/"
 
-        headers, response = self.http.request(workspace_url, "POST", xml, headers)
-        assert 200 <= headers.status < 300, "Tried to create workspace but got " + str(headers.status) + ": " + response
+        response = self.request(method='post', url=workspace_url, headers=headers, data=xml)
+        assert 200 <= response.status_code < 300, "Tried to create workspace but got " \
+                                                  + str(response.status_code) + ": " + response.text
         self._cache.pop("%s/workspaces.xml" % self.service_url, None)
         workspaces = self.get_workspaces(name)
         # Can only have one workspace with this name
         return workspaces[0] if workspaces else None
 
     def get_workspaces(self, names=None):
-        '''
+        """
           Returns a list of workspaces in the catalog.
           If names is specified, will only return workspaces that match.
           names can either be a comma delimited string or an array.
           Will return an empty list if no workspaces are found.
-        '''
+        """
         if names is None:
             names = []
         elif isinstance(names, basestring):
-            names = map(str.strip, str(names).split(','))
+            names = list(map(str.strip, str(names).split(',')))
 
         description = self.get_xml("%s/workspaces.xml" % self.service_url)
         workspaces = []
@@ -1022,12 +1018,11 @@ class Catalog(object):
         return workspaces
 
     def get_workspace(self, name):
-        '''
+        """
           returns a single workspace object.
           Will return None if no workspace is found.
           Will raise an error if more than one workspace with the same name is found.
-        '''
-
+        """
         workspaces = self.get_workspaces(name)
 
         if len(workspaces) == 0:
@@ -1044,15 +1039,17 @@ class Catalog(object):
         return workspace_from_index(self, ws.dom)
 
     def set_default_workspace(self, name):
-        if hasattr(name, 'name'):
+        if getattr(name, 'name', None) is not None:
             name = name.name
         workspace = self.get_workspace(name)
         if workspace is not None:
-            headers = { "Content-Type": "application/xml" }
+            headers = {"Content-Type": "application/xml"}
             default_workspace_url = self.service_url + "/workspaces/default.xml"
             msg = "<workspace><name>%s</name></workspace>" % name
-            headers, response = self.http.request(default_workspace_url, "PUT", msg, headers)
-            assert 200 <= headers.status < 300, "Error setting default workspace: " + str(headers.status) + ": " + response
+            response = requests.put(default_workspace_url, headers=headers, data=msg, auth=self._auth,
+                                    verify=self._verify)
+            assert 200 <= response.status_code < 300, "Error setting default workspace: " \
+                                                      + str(response.status_code) + ": " + response.text
             self._cache.pop(default_workspace_url, None)
             self._cache.pop("%s/workspaces.xml" % self.service_url, None)
         else:
