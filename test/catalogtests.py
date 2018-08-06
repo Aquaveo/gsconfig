@@ -133,11 +133,14 @@ class CatalogTests(unittest.TestCase):
         self.assertTrue('<html xmlns="http://www.w3.org/1999/xhtml"' in str(about_html))
 
     def testGSVersion(self):
+        import pdb
+        pdb.set_trace()
         version = self.cat.gsversion()
-        pat = re.compile('\d\.\d(\.[\dx]|-SNAPSHOT)')
+        pat = re.compile('\d\.\d+(\.[\dx]|-SNAPSHOT)')
         self.assertTrue(pat.match('2.2.x'))
         self.assertTrue(pat.match('2.3.2'))
         self.assertTrue(pat.match('2.3-SNAPSHOT'))
+        self.assertTrue(pat.match('2.10.1'))
         self.assertFalse(pat.match('2.3.y'))
         self.assertFalse(pat.match('233'))
         self.assertTrue(pat.match(version))
@@ -778,7 +781,7 @@ class ModifyingTests(unittest.TestCase):
         lyr.refresh()
         if getattr(lyr.default_style, 'fqn', None) is not None:
             self.assertEqual("topp:ned", lyr.default_style.fqn)
-        self.assertEqual([zed.fqn], [s.fqn for s in lyr.styles])
+            self.assertEqual([zed.fqn], [s.fqn for s in lyr.styles])
 
     def testWorkspaceCreate(self):
         ws = self.cat.get_workspace("acme")
