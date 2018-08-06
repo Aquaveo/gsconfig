@@ -24,7 +24,7 @@ from geoserver.util import shapefile_and_friends
 from .utils import DBPARAMS
 from .utils import GSPARAMS
 
-if sys.version_info.major == 2 and sys.version_info.minor < 7:
+if sys.version_info[0] == 2 and sys.version_info[1] < 7:
     import unittest2 as unittest
 else:
     import unittest
