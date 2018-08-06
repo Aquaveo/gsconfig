@@ -919,7 +919,7 @@ class ModifyingTests(unittest.TestCase):
         files = shapefile_and_friends(os.path.join(gisdata.GOOD_DATA, "time", "boxes_with_end_date"))
         self.cat.create_featurestore("boxes_with_end_date", files, sf)
 
-        get_resource = lambda: self.cat._cache.clear() or self.cat.get_layer('boxes_with_end_date').resource  # noqa: E731, E501
+        get_resource = lambda: self.cat._cache.clear() or self.cat.get_layer('boxes_with_end_date').resource  # noqa: E501
 
         # configure time as LIST
         resource = get_resource()
