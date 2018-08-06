@@ -115,6 +115,7 @@ install:
   - popd
   - pip install .
   - pip install psycopg2
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.6" ]]; then pip install unittest2; fi
 before_script:
   - psql -U postgres -c "create extension postgis"
   - psql -U postgres -c "create database db;"

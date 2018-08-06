@@ -3,13 +3,13 @@ from __future__ import absolute_import
 from builtins import next
 from builtins import str
 import os
+import sys
 import subprocess
 import atexit
 import signal
 import tempfile
 import time
 import re
-import unittest
 import gisdata
 from geoserver.catalog import Catalog
 from geoserver.catalog import ConflictingDataError
@@ -23,6 +23,11 @@ from geoserver.layergroup import LayerGroup
 from geoserver.util import shapefile_and_friends
 from .utils import DBPARAMS
 from .utils import GSPARAMS
+
+if sys.version_info.major == 2 and sys.version_info.minor < 7:
+    import unittest2 as unittest
+else:
+    import unittest
 
 try:
     import psycopg2
