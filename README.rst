@@ -1,8 +1,8 @@
 gsconfig
 ========
 
-.. image:: https://travis-ci.org/boundlessgeo/gsconfig.svg?branch=master
-    :target: https://travis-ci.org/boundlessgeo/gsconfig
+.. image:: https://travis-ci.org/tethysplatform/gsconfig.svg?branch=python3
+    :target: https://travis-ci.org/tethysplatform/gsconfig
 
 gsconfig is a python library for manipulating a GeoServer instance via the GeoServer RESTConfig API. 
 
