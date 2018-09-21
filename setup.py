@@ -19,7 +19,6 @@ setup(name="gsconfig",
       author_email="nswain@aquaveo.com",
       install_requires=[
           'requests>=2.19.1,<2.20.0',
-          'gisdata==0.5.4',
           'future>=0.16.0,<0.17.0'
       ],
       package_dir={'': 'src'},
